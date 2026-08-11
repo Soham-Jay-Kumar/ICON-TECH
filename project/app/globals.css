@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 203 64% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 203 64% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 203 64% 13%;
+    --primary: 203 64% 13%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 168 25% 94%;
+    --secondary-foreground: 203 64% 13%;
+    --muted: 200 25% 96%;
+    --muted-foreground: 203 20% 42%;
+    --accent: 27 91% 56%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 22% 90%;
+    --input: 200 22% 90%;
+    --ring: 27 91% 56%;
+    --radius: 0.75rem;
+
+    /* Motion system tokens — see TRANSITIONS.md. Every transition/animation
+       in the site reads these vars, so reduced-motion below can disable
+       everything from one place. */
+    --motion-duration-micro: 200ms;
+    --motion-duration-ui: 350ms;
+    --motion-duration-reveal: 550ms;
+    --motion-duration-hero: 850ms;
+    --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --motion-ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-micro: 0.01ms;
+    --motion-duration-ui: 0.01ms;
+    --motion-duration-reveal: 0.01ms;
+    --motion-duration-hero: 0.01ms;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@layer components {
+  /* The reference layouts all resolve to a 1296px content column. */
+  .container-site {
+    @apply mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-0;
+  }
+  .section {
+    @apply py-16 md:py-24;
+  }
+  .eyebrow {
+    @apply text-sm font-medium uppercase tracking-[0.18em] text-teal-500;
+  }
+  .dot-accent::after {
+    content: '.';
+    color: #F5822B;
+  }
+}
+
+@layer utilities {
+  .bg-grid-dark {
+    background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+  .bg-grid-light {
+    background-image: linear-gradient(rgba(12, 37, 55, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(12, 37, 55, 0.05) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+  .bg-dots-dark {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+}
