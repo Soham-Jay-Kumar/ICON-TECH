@@ -43,14 +43,18 @@ export function Testimonials() {
     <Section data-shot="testimonials" className="bg-mist-100">
       <Container>
         <div className="grid gap-12 lg:grid-cols-[1fr_1.4fr] lg:gap-20">
-          <Reveal>
-            <p className="eyebrow mb-4">Testimonials</p>
-            <h2 className="text-display-md font-semibold text-navy-900">
-              What Our
-              <br />
-              Customers Saying<span className="text-brand-500">.</span>
-            </h2>
-          </Reveal>
+          <div>
+            <Reveal variant="fade">
+              <p className="eyebrow mb-4">Testimonials</p>
+            </Reveal>
+            <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+              <h2 className="text-display-md font-semibold text-navy-900">
+                What Our
+                <br />
+                Customers Saying<span className="text-brand-500">.</span>
+              </h2>
+            </Reveal>
+          </div>
 
           <Reveal delay={120}>
             <div key={index}>

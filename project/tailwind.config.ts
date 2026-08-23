@@ -112,7 +112,14 @@ const config: Config = {
       },
       boxShadow: {
         soft: '0 8px 30px -6px rgba(12, 37, 55, 0.10)',
-        card: '0 20px 50px -20px rgba(12, 37, 55, 0.18)',
+        // Named `panel`, not `card`: Tailwind auto-generates a `shadow-card`
+        // utility from the `colors.card` theme token (shadcn's
+        // `hsl(var(--card))`, which resolves to white) and that utility wins
+        // the cascade over this one — silently rewriting the intended navy
+        // shadow to a solid white glow. Invisible on the white panels this
+        // was originally used on; unmissable once a panel sits on a dark
+        // background (schedule-demo).
+        panel: '0 20px 50px -20px rgba(12, 37, 55, 0.18)',
         pill: '0 10px 25px -8px rgba(245, 130, 43, 0.5)',
       },
       // Motion tokens. Values live as CSS custom properties in globals.css
@@ -123,10 +130,13 @@ const config: Config = {
         ui: 'var(--motion-duration-ui)',
         reveal: 'var(--motion-duration-reveal)',
         hero: 'var(--motion-duration-hero)',
+        cinematic: 'var(--motion-duration-cinematic)',
+        epic: 'var(--motion-duration-epic)',
       },
       transitionTimingFunction: {
         standard: 'var(--motion-ease-standard)',
         premium: 'var(--motion-ease-premium)',
+        cine: 'var(--motion-ease-cine)',
       },
       keyframes: {
         marquee: {
@@ -137,10 +147,69 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'translateY(-8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'field-in': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'panel-in': {
+          '0%': { opacity: '0', transform: 'scale(0.97)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        // pathLength={1} on the <path> normalises the dash units, so 1 is the
+        // whole stroke regardless of the curve's real length.
+        'tick-draw': {
+          '0%': { strokeDasharray: '1', strokeDashoffset: '1' },
+          '100%': { strokeDasharray: '1', strokeDashoffset: '0' },
+        },
+        // Vision glyph. Paired with steps(12) so the bitten wedge jumps 30° at
+        // a time instead of gliding — the difference between a clock hand and
+        // a spinner.
+        'glyph-tick': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        // Mission glyph. Arrow drops in along its own up-right axis, buries
+        // itself in the bullseye, kicks back a touch on impact, holds, then
+        // clears for the next pass. Compressed from the original cut: the
+        // hold used to eat more than half of every cycle, so a reader glancing
+        // over was more likely to catch the arrow sitting still than actually
+        // striking. Contact now lands at 22%, matched by target-pulse and the
+        // impact flash (vision-mission.tsx).
+        'arrow-strike': {
+          '0%': { opacity: '0', transform: 'translate(17px, -17px)' },
+          '9%': { opacity: '1' },
+          '22%': { transform: 'translate(0px, 0px)' },
+          '27%': { transform: 'translate(2.5px, -2.5px)' },
+          '33%': { transform: 'translate(0px, 0px)' },
+          '74%': { opacity: '1', transform: 'translate(0px, 0px)' },
+          '92%': { opacity: '0', transform: 'translate(0px, 0px)' },
+          '100%': { opacity: '0', transform: 'translate(17px, -17px)' },
+        },
+        // Rings absorb the hit — timed to land on arrow-strike's 22% contact.
+        'target-pulse': {
+          '0%, 20%': { transform: 'scale(1)' },
+          '25%': { transform: 'scale(1.12)' },
+          '35%': { transform: 'scale(1)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         marquee: 'marquee 28s linear infinite',
         'menu-in': 'menu-in var(--motion-duration-ui) var(--motion-ease-premium) both',
+        'field-in':
+          'field-in var(--motion-duration-reveal) var(--motion-ease-premium) both',
+        'panel-in':
+          'panel-in var(--motion-duration-ui) var(--motion-ease-premium) both',
+        'tick-draw':
+          'tick-draw var(--motion-duration-reveal) var(--motion-ease-standard) both',
+        // Cycle lengths are in seconds like `marquee` — these are ambient
+        // loops, not token-scaled UI transitions. Sped up from the original
+        // 12s/5s/5s cut, which was tuned for restraint over noticeability;
+        // the Vision/Mission panels are now the one place on the page asked
+        // to read as animated at a glance rather than reward lingering.
+        'glyph-tick': 'glyph-tick 8s steps(12, end) infinite',
+        'arrow-strike': 'arrow-strike 3.4s var(--motion-ease-premium) infinite',
+        'target-pulse': 'target-pulse 3.4s var(--motion-ease-standard) infinite',
       },
     },
   },

@@ -68,31 +68,39 @@ function BlogCard({
 
 export function Blogs() {
   const [offset, setOffset] = useState(0);
-  const rotated = posts.map(
-    (_, i) => posts[(i + offset + posts.length) % posts.length]
-  );
+  // `%` keeps the sign of its left operand, so stepping `offset` down without
+  // normalising walks unbounded negative and eventually indexes off the front
+  // of `posts` (undefined -> crash on `post.title`). Normalising in the setter
+  // keeps `offset` inside [0, posts.length) for every future read.
+  const rotate = (step: number) =>
+    setOffset((o) => (o + step + posts.length) % posts.length);
+  const rotated = posts.map((_, i) => posts[(i + offset) % posts.length]);
 
   return (
     <Section id="blogs" data-shot="blogs" className="bg-white md:pb-[159px]">
       <Container>
         <div className="flex items-end justify-between gap-6">
-          <Reveal>
-            <p className="eyebrow mb-4">Blogs and Articles</p>
-            <h2 className="max-w-xl text-display-md font-semibold text-navy-900">
-              Stay updated with latest industry insights
-              <span className="text-brand-500">.</span>
-            </h2>
-          </Reveal>
+          <div>
+            <Reveal variant="fade">
+              <p className="eyebrow mb-4">Blogs and Articles</p>
+            </Reveal>
+            <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+              <h2 className="max-w-xl text-display-md font-semibold text-navy-900">
+                Stay updated with latest industry insights
+                <span className="text-brand-500">.</span>
+              </h2>
+            </Reveal>
+          </div>
           <Reveal delay={100} className="hidden shrink-0 gap-3 md:flex">
             <button
-              onClick={() => setOffset((o) => o - 1)}
+              onClick={() => rotate(-1)}
               aria-label="Previous articles"
               className="group flex h-12 w-12 items-center justify-center rounded-xl border border-navy-200 text-navy-900 transition-colors duration-micro ease-standard hover:border-navy-900"
             >
               <ArrowLeft className="h-5 w-5 transition-transform duration-micro ease-standard group-hover:-translate-x-0.5" />
             </button>
             <button
-              onClick={() => setOffset((o) => o + 1)}
+              onClick={() => rotate(1)}
               aria-label="Next articles"
               className="group flex h-12 w-12 items-center justify-center rounded-xl bg-navy-950 text-white transition-colors duration-micro ease-standard hover:bg-navy-800"
             >

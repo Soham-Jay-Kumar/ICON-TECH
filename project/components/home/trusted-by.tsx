@@ -1,4 +1,5 @@
 import { Reveal } from '@/components/site/reveal';
+import { PauseOffscreen } from '@/components/site/pause-offscreen';
 
 const partners = [
   'crunchbase',
@@ -19,7 +20,9 @@ export function TrustedBy() {
           <p className="shrink-0 text-lg font-semibold text-white md:border-r md:border-white/25 md:pr-10">
             Trusted by the best
           </p>
-          <div className="group relative w-full overflow-hidden">
+          {/* Replaces the plain wrapper div this already had, so no extra DOM
+              — it just stops the 28s marquee looping off-screen. */}
+          <PauseOffscreen className="group relative w-full overflow-hidden">
             <div className="flex w-max animate-marquee items-center group-hover:[animation-play-state:paused] motion-reduce:animate-none">
               {[...partners, ...partners].map((name, i) => (
                 <span
@@ -32,7 +35,7 @@ export function TrustedBy() {
             </div>
             <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-teal-500 to-transparent" />
             <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-teal-500 to-transparent" />
-          </div>
+          </PauseOffscreen>
         </div>
       </Reveal>
     </section>

@@ -1,0 +1,39 @@
+PASS  O1 container: never runs flush to the viewport edge — min gutter 20px
+PASS  O1 container: reference width still resolves to a 1296px column — content=1296px gutter=132px
+PASS  O2 anchors: section lands below the fixed navbar — sectionTop=71 headerBottom=65
+PASS  O3 cta: "Book a Demo" points at the demo page — href=/schedule-demo
+PASS  O12 lcp: hero prioritised, footer image not preloaded — {"heroFetchPriority":"high","ctaPreloaded":false}
+PASS  O6 navbar: Home marked current on / — ["Home"]
+PASS  O6 navbar: nothing marked current on /schedule-demo — []
+PASS  O7 form: no dead links on the consent line — count=0
+PASS  O4 metadata: no bolt.new placeholder, absolute OG image — {"og":"http://localhost:3000/images/og-default.png","tw":"http://localhost:3000/images/og-default.png","icon":"/icon.svg?220068f4b1c157ac"}
+PASS  O4 metadata: favicon present — icon=/icon.svg?220068f4b1c157ac
+PASS  O4 /robots.txt served — status=200
+PASS  O4 /sitemap.xml served — status=200
+PASS  O5 footer: panel image is decorative, address is real text — alt=""? true; address=Icon Technology, Flat No 502, 5th Floor, Sunrise...
+PASS  O5 footer: every hit-area link has accessible text — 8 links, 0 empty
+PASS  O13 footer: copyright shows the current year
+PASS  O8 vision/mission: glyph not drawn over the copy on mobile — {"glyphVisible":false,"calloutVisible":false}
+PASS  O9 hero: illegible callouts not rendered on mobile
+PASS  O8/O9 mobile: no horizontal overflow — overflowX=0px
+PASS  O9 hero: callouts legible and inside the frame at md — {"fontSize":12.3462,"right":853,"vw":900}
+PASS  O10 reveal: hydration stamps data-hydrated inside the watchdog window
+PASS  O10 reveal: content becomes visible when hydration never happens — {"js":false,"hydrated":false,"wrappers":25,"hidden":0}
+PASS  O11 animations: hero water pauses once scrolled away — paused=true atTop=false
+PASS  O11 animations: resume when scrolled back
+
+23/23 checks passed
+===RED===
+PASS  R1 blogs: 8 back-clicks do not crash — errors=0 cards=5
+PASS  R1 blogs: 13 forward-clicks do not crash — errors=0 cards=5
+PASS  R2 form: submission is actually POSTed to the API — status=503
+PASS  R2 form: no false success when delivery fails — status=503 success=false error=true
+PASS  R3 hero: leading is not smaller than the type — font=36.0px leading=43.8px
+PASS  R4 navbar: logo is legible at 375px — logo=34.0px
+PASS  R4 hero: h1 clears the fixed navbar — h1Top=195.3px headerBottom=48.1px
+PASS  R5 navbar: no route-relative fragment hrefs — hrefs=["/","/#about","/#products","/#team","/#blogs"]
+PASS  R5 navbar: Products from /schedule-demo lands on the home section — {"path":"/","hash":"#products","exists":true,"top":71.046875}
+FAIL  R5 navbar: first hash click after a fresh / load scrolls — {"top":6393.28125,"y":0}
+
+9/10 checks passed
+ALLDONE

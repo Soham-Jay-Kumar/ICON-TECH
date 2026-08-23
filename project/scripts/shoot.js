@@ -11,7 +11,8 @@ const OUT = process.env.SHOOT_OUT || 'shots';
     deviceScaleFactor: 1,
   });
 
-  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.waitForTimeout(800); // the hero worker keeps networkidle from firing
   await page.evaluate(() => document.fonts.ready);
 
   const fs = require('fs');

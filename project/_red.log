@@ -1,0 +1,13 @@
+PASS  R1 blogs: 8 back-clicks do not crash — errors=0 cards=5
+PASS  R1 blogs: 13 forward-clicks do not crash — errors=0 cards=5
+PASS  R2 form: submission is actually POSTed to the API — status=503
+PASS  R2 form: no false success when delivery fails — status=503 success=false error=true
+PASS  R3 hero: leading is not smaller than the type — font=36.0px leading=43.8px
+PASS  R4 navbar: logo is legible at 375px — logo=34.0px
+PASS  R4 hero: h1 clears the fixed navbar — h1Top=76.0px headerBottom=48.1px
+PASS  R5 navbar: no route-relative fragment hrefs — hrefs=["/","/#about","/#products","/#team","/#blogs"]
+PASS  R5 navbar: Products from /schedule-demo lands on the home section — {"path":"/","hash":"#products","exists":true,"top":71.046875}
+PASS  R5 navbar: first hash click after a fresh / load scrolls — {"top":71.28125,"y":6322}
+
+10/10 checks passed
+ALLDONE

@@ -4,7 +4,7 @@ import { Container, Section } from '@/components/site/section';
 import { Reveal } from '@/components/site/reveal';
 
 const CARD =
-  'relative overflow-hidden rounded-[20px] bg-white shadow-[0_18px_50px_-24px_rgba(12,44,64,0.16)] transition duration-ui ease-standard hover:-translate-y-1 hover:shadow-card';
+  'relative overflow-hidden rounded-[20px] bg-white shadow-[0_18px_50px_-24px_rgba(12,44,64,0.16)] transition duration-ui ease-standard hover:-translate-y-1 hover:shadow-panel';
 
 function FuelSenseLogo({ className }: { className?: string }) {
   return (
@@ -42,7 +42,10 @@ function Card({
 }) {
   const displayW = mockDisplayW ?? 631;
   return (
-    <Reveal delay={delay}>
+    // rise-scale on the cinematic tier: the card "develops" into place (settles
+    // from a hair larger) rather than sliding, so the product mocks read as the
+    // section's primary media, not another fade-up.
+    <Reveal variant="rise-scale" duration="cinematic" delay={delay}>
       <div className={`${CARD} md:h-[822px]`}>
         <div className="p-7 md:px-11 md:pb-0 md:pt-[42px]">
           <FuelSenseLogo className="h-[46px] w-auto md:ml-[5px] md:h-[62px]" />
@@ -69,7 +72,7 @@ function Card({
 
 function AssetLifecycleCard() {
   return (
-    <Reveal delay={200}>
+    <Reveal variant="rise-scale" duration="cinematic" delay={200}>
       <div className={`${CARD} mt-6 md:mt-[34px] md:h-[451px]`}>
         <div className="relative z-10 p-7 md:px-11 md:pb-0 md:pt-[44px]">
           <FuelSenseLogo className="h-[46px] w-auto md:ml-[5px] md:h-[62px]" />
@@ -121,14 +124,20 @@ export function Products() {
       }}
     >
       <Container>
-        <Reveal className="text-center">
-          <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-[#249495] md:text-[16.4px]">
-            Products
-          </p>
-          <h2 className="mt-4 text-[2.25rem] font-semibold leading-[1.15] text-[#072637] md:mt-[19px] md:text-[47.5px]">
-            The Sense Series<span className="text-[#FA8837]">.</span>
-          </h2>
-        </Reveal>
+        <div className="text-center">
+          {/* Layered heading: the label fades, then the headline rises out of
+              a mask on the cinematic tier — a deliberate sequence. */}
+          <Reveal variant="fade">
+            <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-[#249495] md:text-[16.4px]">
+              Products
+            </p>
+          </Reveal>
+          <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+            <h2 className="mt-4 text-[2.25rem] font-semibold leading-[1.15] text-[#072637] md:mt-[19px] md:text-[47.5px]">
+              The Sense Series<span className="text-[#FA8837]">.</span>
+            </h2>
+          </Reveal>
+        </div>
 
         <div className="mt-10 grid gap-6 md:mt-[84px] md:grid-cols-2 md:gap-[34px]">
           <Card

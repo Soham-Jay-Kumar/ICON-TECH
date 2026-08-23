@@ -32,8 +32,18 @@
     --motion-duration-ui: 350ms;
     --motion-duration-reveal: 550ms;
     --motion-duration-hero: 850ms;
+    /* Cinematic tier (TRANSITIONS.md §2/§3). The long, patient band reserved
+       for major typography, hero/ship media and the masked section seams —
+       the reference sites' signature move. UI stays on micro/ui, reveals on
+       reveal/hero; this is what separates how major visual elements move from
+       how UI elements move. */
+    --motion-duration-cinematic: 1200ms;
+    --motion-duration-epic: 1600ms;
     --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
     --motion-ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+    /* The one signature entrance curve for the cinematic tier — a long,
+       gliding ease-out, no overshoot. */
+    --motion-ease-cine: cubic-bezier(0.19, 1, 0.22, 1);
   }
 }
 
@@ -43,6 +53,8 @@
     --motion-duration-ui: 0.01ms;
     --motion-duration-reveal: 0.01ms;
     --motion-duration-hero: 0.01ms;
+    --motion-duration-cinematic: 0.01ms;
+    --motion-duration-epic: 0.01ms;
   }
 }
 
@@ -52,6 +64,13 @@
   }
   html {
     scroll-behavior: smooth;
+    /* The navbar is `fixed`, so a fragment jump would otherwise park the
+       target section's heading underneath it. This is the condensed bar's
+       own height — vw(9 + 42 + 9) = 3.85vw, see `size()` in navbar.tsx, and
+       the bar is always condensed by the time a jump completes — plus 16px
+       of breathing room, with a floor for the mobile bar whose height comes
+       from its 44px menu button rather than from vw. */
+    scroll-padding-top: max(64px, calc(3.85vw + 16px));
   }
   body {
     @apply bg-background text-foreground antialiased;
@@ -65,9 +84,17 @@
 }
 
 @layer components {
-  /* The reference layouts all resolve to a 1296px content column. */
+  /* The reference layouts all resolve to a 1296px content column.
+
+     The gutter is folded into the max-width (1296 + 2 x 32px of sm:px-8)
+     rather than dropped at `lg`. Dropping it meant the padding stopped
+     applying at 1024px but the max-width did not start centring until
+     1296px, so between those two the content ran flush into both viewport
+     edges. Because the box is border-box, 1360px of box minus 32px a side
+     still resolves to exactly the reference 1296px column once the viewport
+     is wide enough to reach the cap — the wide-screen layout is unchanged. */
   .container-site {
-    @apply mx-auto w-full max-w-[1296px] px-5 sm:px-8 lg:px-0;
+    @apply mx-auto w-full max-w-[1360px] px-5 sm:px-8;
   }
   .section {
     @apply py-16 md:py-24;
@@ -82,6 +109,216 @@
 }
 
 @layer utilities {
+  /* The hero water is a canvas redrawing waves.svg's own geometry, off the
+     main thread where OffscreenCanvas allows (components/home/hero-waves.tsx)
+     — the surface is advected in the renderer, not tweened, so it has no CSS
+     keyframe here. It owns its own gating too: it stops off-screen, on a
+     hidden tab, and under prefers-reduced-motion, none of which a CSS
+     play-state can reach. */
+
+  /* The site's single signature ambient loop (TRANSITIONS.md §13) — a slow
+     radar sweep, the maritime/AI motif. Applied to exactly one ring frame and
+     wrapped in PauseOffscreen so it never composites off-screen. Everything
+     else on the page is still at rest. The element carrying this is a full
+     conic-gradient wedge; the class only spins it. */
+  @keyframes radar-sweep {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .radar-sweep-anim {
+    animation: radar-sweep var(--radar-duration, 6s) linear infinite;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .radar-sweep-anim {
+      animation: none;
+    }
+  }
+
+  /* Execution-deck vessel: a ship crossing the dark band's horizon, left to
+     right, on a slow calm loop (the maritime motif, in place of a marker).
+     Translates in viewport units so it always clears both edges regardless of
+     its own width. Under reduced motion the loop is off and the element's own
+     inline transform parks it at a visible resting position. Wrapped in
+     PauseOffscreen so it stops compositing off-screen. */
+  @keyframes ship-sail {
+    0% {
+      /* Starts just clear of the left edge (-25vw covers the widest hull plus
+         wake) so the vessel enters view early in each cycle instead of
+         spending a third of the loop crossing hidden water. */
+      transform: translateX(-25vw);
+    }
+    100% {
+      transform: translateX(112vw);
+    }
+  }
+  .ship-sail-anim {
+    animation: ship-sail var(--sail-duration, 34s) linear infinite;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ship-sail-anim {
+      animation: none;
+    }
+  }
+
+  /* The same vessel, sailing a *column* instead of the viewport — used on
+     /schedule-demo, where the ship crosses the left copy column beside the
+     form rather than the full band. The span is a percentage of the band's
+     own width, so the ship is in view for the same share of every loop no
+     matter how wide the column resolves to; the viewport-unit version above
+     would leave it parked off the right of a half-width column for most of
+     the cycle. Otherwise identical: same sprite, same linear pace, same
+     PauseOffscreen + reduced-motion contract. */
+  @keyframes ship-sail-contained {
+    0% {
+      transform: translateX(-20%);
+    }
+    100% {
+      transform: translateX(120%);
+    }
+  }
+  .ship-sail-contained-anim {
+    animation: ship-sail-contained var(--sail-duration, 26s) linear infinite;
+    will-change: transform;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ship-sail-contained-anim {
+      animation: none;
+    }
+  }
+
+  /* Vision panel signature: a sonar ping — rings emanate outward from the
+     glyph and fade, on a loop. The maritime "listening" counterpart to the
+     Mission scope's active radar sweep. Each ring supplies its own delay; the
+     base opacity is 0 so under reduced motion (animation removed) it is simply
+     invisible rather than a stuck static ring. Brighter and quicker than the
+     original pass — the loop needs to read at a glance, not reward staring. */
+  @keyframes sonar-ping {
+    0% {
+      transform: scale(0.35);
+      opacity: 0.9;
+    }
+    65% {
+      opacity: 0.16;
+    }
+    100% {
+      transform: scale(1.65);
+      opacity: 0;
+    }
+  }
+  .sonar-ping-anim {
+    animation: sonar-ping var(--ping-duration, 3.2s) ease-out infinite;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sonar-ping-anim {
+      animation: none;
+    }
+  }
+
+  /* Vision panel: the one-shot bloom that fires the instant the panel first
+     comes into view (vision-mission.tsx remounts this on that transition, via
+     a key change, so it always plays fresh rather than landing on a random
+     point in an already-running loop). A single bright flash outward, well
+     past the sonar rings' own scale and opacity, so the panel visibly "switches
+     on" instead of the reader having to catch a subtle ambient loop already in
+     progress. `forwards` so it holds its cleared end-state; the ongoing
+     sonar-ping loop above continues underneath it regardless. */
+  @keyframes vision-bloom {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    18% {
+      opacity: 0.9;
+    }
+    100% {
+      transform: scale(2.05);
+      opacity: 0;
+    }
+  }
+  .vision-bloom-anim {
+    animation: vision-bloom 1.1s var(--motion-ease-premium, ease-out) both;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vision-bloom-anim {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
+  /* Vision panel: the crosshair rings, silent before this pass (zero motion
+     of their own). A slow continuous turn gives the glyph area a baseline of
+     life even between sonar pulses, and reads as the same "active sensor"
+     idea as the Mission reticle beside it. */
+  .vision-rings-anim {
+    animation: radar-sweep 40s linear infinite;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vision-rings-anim {
+      animation: none;
+    }
+  }
+
+  /* Mission panel: the dashed reticle rings rotate slowly, a targeting scope
+     "acquiring lock" beneath the fixed radar sweep. Reuses the radar-sweep
+     rotation keyframe at a much slower tempo. */
+  .reticle-spin-anim {
+    animation: radar-sweep var(--reticle-duration, 26s) linear infinite;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reticle-spin-anim {
+      animation: none;
+    }
+  }
+
+  /* Mission panel: a bright flash at the bullseye, timed to land exactly on
+     the arrow's first impact (vision-mission-glyphs.tsx delays this to match
+     arrow-strike's 20% contact point). Remounted alongside the strike itself
+     when the panel first comes into view, so the "hit" always lands in sight
+     rather than on whichever phase a long-running loop happened to be at. */
+  @keyframes mission-impact {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    30% {
+      opacity: 0.85;
+    }
+    100% {
+      transform: scale(2.6);
+      opacity: 0;
+    }
+  }
+  .mission-impact-anim {
+    animation: mission-impact 0.6s var(--motion-ease-standard, ease-out) both;
+    transform-origin: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mission-impact-anim {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
+  /* Set by components/site/pause-offscreen.tsx while its subtree is out of
+     view. !important because it has to beat whatever play-state the animated
+     descendants set for themselves (the marquee's own group-hover pause, for
+     one), and pausing is never the thing a descendant wants to override. */
+  .anim-paused,
+  .anim-paused * {
+    animation-play-state: paused !important;
+  }
+
   .bg-grid-dark {
     background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
       linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);

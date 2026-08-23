@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
     viewport: { width: 1440, height: 1000 },
     deviceScaleFactor: 2,
   });
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:3000', { waitUntil: 'load' });
   await page.waitForTimeout(300);
 
   const box = await page.evaluate(() => {

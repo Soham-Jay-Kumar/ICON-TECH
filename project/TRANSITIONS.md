@@ -20,9 +20,9 @@ Icon Tech is a serious B2B maritime technology company. Motion exists to communi
 The motion language is:
 
 - **Modern, premium, calm, technical, precise** — never playful, bouncy, or ornamental.
-- **Restrained** — a handful of intentional, well-placed motions beat many competing ones.
-- **Fast** — interactions resolve in under 250ms; nothing feels like it's waiting on the animation.
-- **Deterministic** — every reveal fires once and settles exactly on the DESIGN.md layout. Nothing loops indefinitely except the one section that is explicitly a marquee.
+- **Restrained** — a handful of intentional, well-placed motions beat many competing ones. The cinematic register (§2–§3) is spent on the few elements that carry the page, not sprayed across every block.
+- **Two-speed** — *interactions* stay fast (under 250ms), so nothing UI ever feels like it's waiting on the animation; *entrances* for major visual elements are deliberately slower (the ~1.1s cinematic tier), a serious arrival rather than a snappy one. The split is the point (§2).
+- **Deterministic** — every reveal fires once and settles exactly on the DESIGN.md layout. The only elements that loop at rest are the sanctioned ambient set (marquee, hero water, glyphs, and the one radar signature — §13), each `PauseOffscreen`-gated; everything else is still.
 - **Content-first** — motion never blocks, delays, or hides content. If JavaScript or the animation system fails, every element is fully visible and functional immediately (see §12, §14).
 
 ---
@@ -36,22 +36,34 @@ All durations and easings are CSS custom properties defined once, in `app/global
 | `--motion-duration-micro` | `duration-micro` | `200ms` | Buttons, links, icon nudges, color/border changes |
 | `--motion-duration-ui` | `duration-ui` | `350ms` | Card hover lift, image zoom, mobile menu open |
 | `--motion-duration-reveal` | `duration-reveal` | `550ms` | Section/content scroll reveals |
-| `--motion-duration-hero` | `duration-hero` | `850ms` | Hero media, largest single sequence on the site |
+| `--motion-duration-hero` | `duration-hero` | `850ms` | Legacy media band (still used where a reveal wants 850ms) |
+| `--motion-duration-cinematic` | `duration-cinematic` | `1200ms` | **Cinematic tier** — major typography (masked line-rise), media "develop" reveals, converging panels |
+| `--motion-duration-epic` | `duration-epic` | `1600ms` | The single grandest sequence (the CTA dashboard) |
 | `--motion-ease-standard` | `ease-standard` | `cubic-bezier(0.4, 0, 0.2, 1)` | All interactive (hover/press/UI) transitions |
-| `--motion-ease-premium` | `ease-premium` | `cubic-bezier(0.16, 1, 0.3, 1)` | All entrance/reveal transitions (strong decelerate, no overshoot) |
+| `--motion-ease-premium` | `ease-premium` | `cubic-bezier(0.16, 1, 0.3, 1)` | Base entrance/reveal transitions (strong decelerate, no overshoot) |
+| `--motion-ease-cine` | `ease-cine` | `cubic-bezier(0.19, 1, 0.22, 1)` | **Cinematic tier** — the long, gliding entrance curve |
 | — | `translate-y-6` | `24px` | Standard reveal rise distance |
-| — | (prop) | `~100ms` | Standard stagger step between sibling reveals |
+| — | (prop) | `~100–120ms` | Standard stagger step between sibling reveals |
 
-These map directly onto the brief's timing bands: micro-interactions 200ms, UI transitions 350ms, section reveals 550ms, the one largest sequence (hero media) 850ms — all inside the requested 150–1000ms range.
+**Three tiers, split by what moves.** This is the core of the system, and the split between how *major visual elements* arrive and how *UI elements* react is deliberate:
+
+| Tier | What moves | Duration | Ease |
+|---|---|---|---|
+| **UI** | buttons, links, nav, card hover | `micro` 200 / `ui` 350 | `ease-standard` |
+| **Reveal** | body copy, minor groups | `reveal` 550 / `hero` 850 | `ease-premium` |
+| **Cinematic** | major typography (masked line-rise), hero/media reveals, converging panels | `cinematic` 1200 / `epic` 1600 | `ease-cine` |
+
+The cinematic tier is intentionally slower than the "under 250ms" band that governs UI — a serious, unhurried arrival for the few elements that carry the page, while every UI interaction stays snappy. This is the reference language (Monopo's patient glide, Origin's long atmospheric reveals against snappy UI states) translated into Icon Tech's own tokens.
 
 ---
 
 ## 3. Easing System
 
-Two curves, used consistently everywhere:
+Three curves, used consistently everywhere:
 
 - **`ease-standard`** (`cubic-bezier(0.4, 0, 0.2, 1)`) — for anything the user directly triggers: hover, press, dropdown, menu. Quick to start, quick to settle. No overshoot.
-- **`ease-premium`** (`cubic-bezier(0.16, 1, 0.3, 1)`) — for anything the page triggers on its own: scroll reveals, hero sequence. Strong deceleration into the resting frame, giving a "settling into place" feel appropriate for a precision engineering brand.
+- **`ease-premium`** (`cubic-bezier(0.16, 1, 0.3, 1)`) — base scroll reveals. Strong deceleration into the resting frame, a "settling into place" feel.
+- **`ease-cine`** (`cubic-bezier(0.19, 1, 0.22, 1)`) — the cinematic tier only: the hero headline/media, major section headings, the converging Vision/Mission panels, the CTA dashboard. A long, gliding ease-out — more patient than `ease-premium`, still no overshoot. It is the curve that makes a slow reveal read as *deliberate* rather than merely *late*.
 
 No spring, elastic, or bounce easing exists anywhere in the system (see §15).
 
@@ -61,9 +73,9 @@ No spring, elastic, or bounce easing exists anywhere in the system (see §15).
 
 This is a single-page site (`app/page.tsx` renders one route). There is no client-side route transition system, and none is introduced — adding one for a single URL would be motion for its own sake.
 
-"Section transitions" on this site means: each section reveals itself once as the user scrolls to it (§6), and in-page navigation (`Navbar` links to `#about`, `#products`, etc.) uses the browser's native anchor scrolling — no custom scroll-hijacking or easing is applied to that scroll itself, so the page always stays responsive to the user's own scroll input.
+"Section transitions" on this site means: each section reveals itself once as the user scrolls to it (§6), and in-page navigation (`Navbar` links to `#about`, `#products`, etc.) uses the browser's native anchor scrolling — no custom scroll-hijacking or easing is applied to that scroll itself, so the page always stays responsive to the user's own input.
 
-No cross-fade or masked handoff **between** sections is used. Sections sit on flat, distinct backgrounds (white / tinted / navy) by design; forcing a transition between them would fight that intentional contrast rather than support it.
+**Continuity comes from a unified reveal grammar, not per-seam machinery.** Every section's heading uses the same cinematic masked line-rise and the same stagger cadence, so the whole page reads as one deliberately choreographed sequence as you scroll — the "one connected experience" — while each section keeps its own flat, distinct background (white / tinted / navy). An earlier scroll-linked colour-bleed at the Products→Trusted-By seam was tried and **removed**: it added machinery for an effect too subtle to earn its keep. Restraint over cleverness — the reference language's actual lesson.
 
 ---
 
@@ -71,15 +83,18 @@ No cross-fade or masked handoff **between** sections is used. Sections sit on fl
 
 **Component:** `components/home/hero.tsx`
 
-The hero carries the strongest motion on the site — a single short sequence, not a cinematic one.
+The hero carries the strongest motion on the site — now a layered cinematic sequence with clear hierarchy, not three identical fade-ups.
 
-| Element | Trigger | Initial state | Final state | Duration | Delay | Easing |
-|---|---|---|---|---|---|---|
-| Headline (`h1`) | On mount | `opacity 0`, `translateY(24px)` | `opacity 1`, `translateY(0)` | `duration-reveal` (550ms) | 0ms | `ease-premium` |
-| Supporting line | On mount | same as above | same as above | `duration-reveal` | 100ms | `ease-premium` |
-| Ocean/ship media | On mount | `opacity 0`, `clip-path: inset(0 0 100% 0)` (masked from the bottom up) | `opacity 1`, `clip-path: inset(0)` | `duration-hero` (850ms) | 220ms | `ease-premium` |
+| Element | Trigger | Initial → Final | Duration | Delay | Easing |
+|---|---|---|---|---|---|
+| Headline (`h1`) | On mount | `rise-mask`: rises up out of an `overflow-hidden` frame (type emerges from behind a hard edge) + opacity | `cinematic` (1200ms) | 0ms | `ease-cine` |
+| Supporting line | On mount | `rise`: `opacity 0`, `translateY(24px)` → settled | `reveal` (550ms) | 100ms | `ease-premium` |
+| Tertiary line | On mount | `rise` | `reveal` | 160ms | `ease-premium` |
+| Ocean/ship media | On mount | `mask`: `clip-path: inset(0 0 100% 0)` → `inset(0)` (tide fills in from the waterline) + opacity | `cinematic` (1200ms) | 140ms | `ease-cine` |
 
-The media uses a mask/clip-path wipe rather than a rise, per §7 — it's the "primary visual," so it gets the more deliberate treatment while the copy above it settles first. Nothing in the hero loops, drifts, or parallaxes at rest — once revealed, the hero is completely static, matching DESIGN.md exactly.
+The headline rises out of its mask on the cinematic tier while the copy rises under it — a sequence, not a flat group. The media's bottom-up clip reads as a rising tide (the maritime signature). It is held to the `cinematic` tier, not `epic`, and to a short delay, **because the ocean plate is the page's LCP element** — the grandest `epic` reveal is spent on the CTA dashboard at the foot instead, where it costs no LCP. The hero watermark and callouts parallax on scroll (§16).
+
+The two callout labels also ride the hull at rest, and this is not decoration: their leader lines and arrowheads are drawn *inside* the ship raster, so they already inherit the hull's transform. `hero.tsx` writes that same rigid transform — the same translate **and** the same rotate, about the ship's own pivot, which each label carries as its `transform-origin` — onto the label text, so the annotation moves as one piece. The rotation is the load-bearing half: the two leader tips sit on opposite sides of the pivot (plate x 439 and 1203 against a pivot at 771), so a roll moves them in opposite vertical directions, and driving both labels from one shared `dy` visibly tears the text off its arrow. `scripts/check-callout-track.js` measures the residual gap (currently 0.0012px) and refuses to pass on a hull that is not actually moving.
 
 **Mobile:** identical sequence; distances and durations are unchanged (there is no separate mobile timing — the same tokens apply, and the layout itself already adapts per DESIGN.md).
 
@@ -97,13 +112,19 @@ The media uses a mask/clip-path wipe rather than a rise, per §7 — it's the "p
 
 | Variant | Initial state | Final state | Used for |
 |---|---|---|---|
-| `rise` (default) | `opacity 0`, `translateY(24px)` | `opacity 1`, `translateY(0)` | Headings, copy, cards, stats |
-| `fade` | `opacity 0` | `opacity 1` | Trusted-by strip, footer — content that shouldn't shift position |
-| `mask` | `opacity 0`, `clip-path: inset(0 0 100% 0)` | `opacity 1`, `clip-path: inset(0)` | Hero media only |
+| `rise` (default) | `opacity 0`, `translateY(24px)` | `opacity 1`, `translateY(0)` | Body copy, minor groups, stats |
+| `fade` | `opacity 0` | `opacity 1` | Eyebrows, trusted-by strip, footer — content that shouldn't shift |
+| `mask` | `opacity 0`, `clip-path: inset(0 0 100% 0)` | `opacity 1`, `clip-path: inset(0)` | Hero ocean (bottom-up tide fill) |
+| `rise-mask` | child at `translateY(100%)`, `opacity 0`, inside an `overflow-hidden` frame | `translateY(0)`, `opacity 1` | **Major headings** — type rises from behind a hard edge |
+| `rise-scale` | `opacity 0`, `translateY(40px)`, `scale(1.06)` | settled at `scale(1)` | **Media that "develops"** — product cards, CTA dashboard |
+| `left` | `opacity 0`, `translateX(-24px)` | `opacity 1`, `translateX(0)` | Left half of a side-by-side pair |
+| `right` | `opacity 0`, `translateX(24px)` | `opacity 1`, `translateX(0)` | Right half of a side-by-side pair |
 
-**Trigger → Duration → Easing:** viewport entry → `duration-reveal` (550ms), or `duration-hero` for hero media → `ease-premium`.
+The two clipped variants (`mask` clip-path, `rise-mask` overflow) animate an inner child, never the observed node — for `mask` a clip-collapsed node reports 0% intersection forever and never fires; for `rise-mask` the outer node is the `overflow-hidden` frame the child rises out of. `rise-scale` settles from noticeably larger, so media reads as a slow camera-settle rather than a flat slide. `left`/`right` converge a two-up group on its centre seam; used by the Vision/Mission panels.
 
-**Stagger:** siblings in a group (product cards, stat blocks, team tiles, blog cards) pass an incremental `delay` prop, stepped by roughly 100ms, so the group reads left-to-right / top-to-bottom rather than popping in together. Total cascade per group stays under ~400ms.
+**Duration is a per-`Reveal` prop** (`base` 550 / `slow` 850 / `cinematic` 1200 / `epic` 1600), and the ease follows the tier automatically: `base`/`slow` → `ease-premium`, `cinematic`/`epic` → `ease-cine`. Major headings (`rise-mask`) and media (`mask`/`rise-scale`) use the cinematic tier; body copy stays on `base`.
+
+**Stagger:** siblings in a group pass an incremental `delay`, stepped ~100–120ms, so the group reads in order rather than popping in together.
 
 **What is NOT wrapped in `Reveal`:** individual words, individual sentences within a paragraph, or decorative background elements (ray fan, grid textures, watermark ships). Only meaningful visual groups animate, per the brief.
 
@@ -111,15 +132,17 @@ The media uses a mask/clip-path wipe rather than a rise, per §7 — it's the "p
 
 | Section | Reveal groups |
 |---|---|
-| Who We Are | Heading (0ms), body copy (120ms) |
-| Vision / Mission | Vision panel (0ms), Mission panel (120ms) |
-| Products | Heading, then 2 cards (0/100ms) + asset-lifecycle card (200ms) |
+Every section headline now shares one grammar — eyebrow `fade`, then the `h2` on `rise-mask`/cinematic — so the page reads as one choreographed sequence.
+
+| Who We Are | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms), body `rise`/cinematic (120ms) — continues the hero's register across the white→white boundary |
+| Vision / Mission | Vision panel `left`/cinematic (0ms), Mission panel `right`/cinematic (120ms) — converge on the centre seam; Mission carries the radar signature (§13) |
+| Products | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms), then 2 cards `rise-scale`/cinematic (0/100ms) + asset-lifecycle card `rise-scale`/cinematic (200ms) |
 | Trusted By | Whole strip, `fade` — logos themselves scroll via the marquee (§9), independent of this reveal |
-| Results | Heading, then 3 stat blocks (0/100/200ms) |
-| Testimonials | Heading, quote block (120ms) — quote block also re-reveals on prev/next click since it remounts with the new quote (a content-change cue, not a scroll replay) |
-| Team | CEO tile, then 2 tiles (100/200ms) |
-| Blogs | Heading + controls, then cards (0/100ms per row) |
-| CTA | Copy + button, then dashboard image (200ms, `duration-hero`) |
+| Results | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms), then 3 stat blocks `rise` (0/100/200ms). Counters stay self-timed (§16) |
+| Testimonials | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms); quote block `rise` (120ms) — also re-reveals on prev/next click since it remounts with the new quote |
+| Team | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms); CEO tile, then 2 tiles (100/200ms) |
+| Blogs | Eyebrow `fade`, heading `rise-mask`/cinematic (120ms); controls, then cards (0/100ms per row) |
+| CTA | Heading `rise-mask`/cinematic, copy `rise` (120ms), button `rise` (200ms), then dashboard `rise-scale`/**epic** (200ms) — the grandest single reveal, at the page foot where it costs no LCP |
 | Footer | Whole panel, `fade` |
 
 ---
@@ -155,13 +178,13 @@ No scale on the card itself (only the media inside it), no rotation, no border-c
 
 | Element | Hover | Press (`active:`) |
 |---|---|---|
-| Nav links | Text color → brand orange, `duration-micro` | — |
+| Nav links (desktop pill) | Text color → brand orange + an underline that traces in from the left (`scaleX(0→1)`, transform-only), `duration-micro` | — |
 | "Book a Demo" (nav, desktop + mobile) | `opacity 90%` / background unchanged | `opacity 80%` |
-| "Book a Demo" (CTA section) | Background darkens + shadow escalates, `duration-ui` | `opacity 90%` |
+| "Book a Demo" (CTA section) | **Fill-sweep** — a `brand-600` layer wipes across left→right (`scaleX(0→1)` on a `before` pseudo, clipped to the pill), label + arrow riding above it; arrow slides `+6px`, `duration-ui` | `opacity 90%` |
 | Testimonial / blog carousel arrows | Border or background color, `duration-micro`; arrow glyph itself nudges 2px in its direction of travel | — |
 | Blog card title | Color → brand, `duration-micro`, tied to card hover via `group` | — |
 
-The arrow-nudge on carousel controls is the one explicit "arrow moves slightly" micro-interaction called for in the brief; it's `transform`-only and capped at 2px, so it reads as responsiveness, not decoration.
+Two signature micro-interactions carry the reference register (Monopo/Origin), both `transform`-only (no layout, no shadow theatrics): the nav **underline-trace** and the CTA **fill-sweep**. The carousel arrow-nudge stays a 2px responsiveness cue.
 
 ---
 
@@ -173,7 +196,9 @@ The arrow-nudge on carousel controls is the one explicit "arrow moves slightly" 
 - **"Book a Demo" button:** opacity transition on hover/press, same tokens.
 - **Mobile menu (open):** the panel is conditionally rendered, so each time it mounts it runs the `menu-in` keyframe once — `opacity 0→1` + `translateY(-8px→0)`, `duration-ui`, `ease-premium`. Close is instant (unmount); this stays intentionally simple rather than adding exit-animation state for a menu that's open for seconds at a time.
 - **Menu toggle button:** the Menu/X icon swap is instant — no rotation or crossfade. Animating an icon that swaps identity (not just state) adds complexity without a discernible payoff, and the brief is explicit: "do not over-animate the navbar."
-- **No sticky-header transition:** the header is `position: absolute` over the hero in the current layout (it is not fixed/sticky — it scrolls away with the page). Sticky positioning is a layout/behavior change, not a motion one, and the brief's own list of nav treatments is a menu of *possible* interactions ("do not over-animate"), not a checklist to exhaust. It was left out rather than bolted on as a pretext for another transition.
+- **Condensing sticky header:** the header is `position: fixed` and persists past the hero, and is a solid opaque `bg-white` at every scroll position — no `backdrop-blur`, no translucency, so nothing behind it (hero waves, dark sections) ever shows through. Below 90px of scroll it sits at full reference size (~75px tall); past that threshold (with 12px of hysteresis, so parking on the boundary can't flicker it) the logo, nav pill and CTA shrink to roughly 78% of their reference height — all on `duration-ui`/`ease-standard`. A hairline border and a soft shadow (constant, not scroll-linked) separate it from the page. `fixed` and `absolute` are both out of flow, so this changes no section's resting layout.
+
+  The condensed sizes are still expressed through the same `vw()` reference helper, so the bar stays proportional at every width rather than snapping to fixed pixels.
 
 ---
 
@@ -200,16 +225,19 @@ No content is ever hidden by a reduced-motion state — only the transition dura
 
 ## 13. Performance Guidelines
 
-- Every transition/animation in the system touches only `opacity`, `transform`, and (in exactly one place, the hero/mask reveal) `clip-path`. No layout-triggering properties (`width`, `height`, `margin`, `top`/`left`) are ever animated.
-- The only continuous, indefinitely-looping animation on the entire site is the Trusted-By marquee (`animation: marquee 28s linear infinite`), and it pauses on hover and is disabled under reduced motion. There is no second ambient loop anywhere (no hero drift, no floating footer elements, no pulsing anything).
+- Every transition/animation in the system touches only `opacity`, `transform`, and (for the `mask` reveal) `clip-path`. No layout-triggering properties (`width`, `height`, `margin`, `top`/`left`) are ever animated. `rise-mask` clips with `overflow-hidden` and animates only the child's `transform`.
+- **Ambient loops are deliberately few and all gated off-screen**: the Trusted-By marquee, the hero water, the Vision/Mission glyphs, and — added in this revision — exactly **one** signature loop, the radar sweep in the Mission ring scope (§13 below). All but the water are gated by `PauseOffscreen` (which sets `animation-play-state: paused` while a subtree is off-screen); the water is a canvas — drawn in a worker where `OffscreenCanvas` allows — with no CSS animation to pause, so it gates its own clock on the same `IntersectionObserver` terms and additionally stops on a hidden tab. No new ambient motion beyond that single sweep; everything else on the page is still at rest, and every loop is disabled under reduced motion.
+- **The one signature ambient (radar sweep).** A slow conic wedge masked to the Mission ring disc (`.radar-sweep-anim`, `--radar-duration: 7s`), the maritime/AI motif — the page's one continuously-moving flourish at rest. `PauseOffscreen`-wrapped, `motion-reduce` off. It is intentionally the *only* new loop: the reference language earns its premium feel through restraint, not activity.
+- **The execution deck's vessel and its wake.** The ship crossing the dark band's foot sails on a plain CSS loop (`.ship-sail-anim`, `--sail-duration: 34s`), `PauseOffscreen`-wrapped. Its propeller wash (`components/home/ship-wake.tsx`) is the system's **only** canvas/`requestAnimationFrame` motion: a particle emitter that spawns foam at the propeller's live position and then lets each particle carry its own velocity, spread and fade-out, so the wake is left behind in the water rather than towed along by the hull. It is deliberately not a CSS trail — a trail parented to the ship can only ever slide with it. The loop is decorative (`aria-hidden`; if JS never runs the ship simply sails without a wake), it idles itself while the band is off-screen on the same boundary `PauseOffscreen` uses, and under reduced motion no loop runs at all: the field is stepped once, offline, and painted as a single still frame behind the parked hull.
 - `Reveal` disconnects its `IntersectionObserver` the moment it fires — there is no ongoing scroll listener per section after the first reveal.
-- No JavaScript animation library, scroll-linked-parallax library, or scroll-hijacking is used or needed. Everything is native CSS transitions/keyframes plus one small `IntersectionObserver` hook.
+- Scroll-linked motion (§16) adds exactly **one** passive, rAF-throttled `scroll` listener for the whole document, shared by every parallax layer and the header, no matter how many are mounted. Reads and writes are phase-separated within the frame (every `getBoundingClientRect` runs before any `style.transform` write), so a frame can never degenerate into read→write→read layout thrash.
+- No JavaScript animation library, scroll-linked-parallax library, or scroll-hijacking is used or needed. Everything is native CSS transitions/keyframes plus one `IntersectionObserver` hook, one shared scroll subscription, and the single self-contained canvas emitter behind the ship's wake (above) — which exists because per-particle physics is the one effect CSS keyframes genuinely cannot express.
 
 ---
 
 ## 14. Implementation Rules
 
-- **One token source:** all durations/easings live as CSS custom properties in `app/globals.css`, surfaced through `tailwind.config.ts` as `duration-micro|ui|reveal|hero` and `ease-standard|premium`. Components reference the token classes; nothing hardcodes a raw `ms` value or `cubic-bezier(...)` inline.
+- **One token source:** all durations/easings live as CSS custom properties in `app/globals.css`, surfaced through `tailwind.config.ts` as `duration-micro|ui|reveal|hero|cinematic|epic` and `ease-standard|premium|cine`. Components reference the token classes; nothing hardcodes a raw `ms` value or `cubic-bezier(...)` inline.
 - **One reveal mechanism:** `components/site/reveal.tsx` is the only scroll-triggered entrance mechanism on the site. No section rolls its own `IntersectionObserver` or scroll listener.
 - **One hover/press mechanism:** `transition duration-{token} ease-standard` + Tailwind `hover:`/`active:` utilities, applied consistently — no per-component custom transition timing.
 - **Content is never gated on JavaScript.** `Reveal`'s hidden pre-animation state is scoped to `[.js_&]` — a class added by a `beforeInteractive` script in `app/layout.tsx`. If JavaScript fails to run, that class is never added, so `Reveal` content (and thus the whole page) renders fully visible by default. JS only ever adds motion; it never gates visibility.
@@ -223,15 +251,86 @@ No content is ever hidden by a reduced-motion state — only the transition dura
 Explicitly not used anywhere in this system:
 
 - Spring, elastic, or bounce easing.
-- Scroll-jacking or scroll-linked parallax.
+- **Scroll-jacking** — the page never intercepts, eases, or hijacks the user's own scroll input. (Scroll-*linked* motion is now permitted; see §16. The two are not the same thing: scroll-linked motion reads the scroll position, it never takes it over.)
 - Auto-playing carousels (testimonials/blogs are user-controlled only).
-- Continuous ambient loops beyond the single Trusted-By marquee (no glow, pulse, shimmer, floating, or drifting elements).
-- Animating layout-triggering CSS properties (`width`, `height`, `margin`, `top`/`left`, grid tracks).
+- Continuous ambient loops beyond the sanctioned set (marquee, hero water, glyphs, and the one radar sweep — §13). No glow, pulse, shimmer, floating, or self-drifting elements beyond those. Parallax layers move *only* as a function of scroll position — at rest, everything else on the page is still.
+- Animating layout-triggering CSS properties (`width`, `height`, `margin`, `top`/`left`, grid tracks). The one exception is the header's condense transition (§10), which animates `height`/`padding` on an out-of-flow element, so it cannot reflow page content.
 - Re-triggering scroll reveals on every scroll pass (all reveals fire once).
 - Route/page-transition machinery for a single-page site.
-- Cinematic hero treatment — the hero settles in well under a second, not several seconds.
+- Over-long hero treatment — the hero is cinematic but restrained: the ocean settles on the `cinematic` tier (~1.1s), not a multi-second sequence, and it is the LCP element, so it is never the slowest reveal on the page (the CTA dashboard, at the foot, holds `epic`).
 - Animating every paragraph/word individually instead of meaningful visual groups.
 - Per-component bespoke transition durations or easings that bypass the shared tokens in §2.
+- Parallax on any element whose resting position was measured against a reference screenshot (see the `anchor` rule in §16).
+
+---
+
+## 16. Scroll-Linked Motion
+
+**Component:** `components/site/scroll.tsx`
+
+Motion that tracks scroll *position* continuously, as distinct from `Reveal`,
+which fires once on entry. Added deliberately, and it supersedes this document's
+former blanket ban on parallax — the ban on scroll-*jacking* stands (§15).
+
+### Shared plumbing
+
+`subscribeScroll(read, write)` is the single entry point. One passive
+rAF-throttled listener; all subscriber reads run before all subscriber writes.
+Everything below is a no-op under `prefers-reduced-motion` — the layer simply
+never receives a transform, so it renders at its exact design position.
+
+### `<Parallax distance anchor axis>`
+
+`transform`-only, so it never triggers layout.
+
+| `anchor` | Drift is zero when… | Use for |
+|---|---|---|
+| `top` | scroll position is 0 | Anything above the fold |
+| `center` | element is centred in the viewport | Below-the-fold background texture |
+
+**The anchor rule.** A viewport-centred parallax is *offset from its design
+position at page load* — the element only sits on its reference frame when it
+happens to be centred. That is fine for a background texture nobody measured,
+and unacceptable for the hero, whose spacing is tuned to the pixel. Anything
+above the fold must use `anchor="top"`, which is exactly zero at scroll 0, so
+the first painted frame is always the DESIGN.md frame and drift only accumulates
+as the user scrolls. `top` drift is capped at `distance` so layers settle rather
+than sliding forever.
+
+| Layer | `distance` | `anchor` |
+|---|---|---|
+| Hero "AI DRIVEN SHIPPING" watermark | `-72` | `top` |
+| Hero callouts (anchor / fuel) | `-26` / `-38` | `top` |
+| Who We Are ray fan | `-40` | `center` |
+| Who We Are watermark ship | `64` | `center` |
+| Results dot field | `-56` | `center` |
+
+Negative values drift against the scroll, which reads as "further away". The
+hero watermark and ship plate therefore separate as the user scrolls, giving the
+composition depth it does not have at rest.
+
+> Centring must live on a wrapper, never on the `Parallax` itself — it writes
+> `style.transform`, which would override a `-translate-x-1/2` utility class.
+
+> A scroll-linked masked section-seam (`SeamCurtain`) was prototyped and
+> removed: the effect was too subtle to justify the machinery. Section
+> continuity now lives entirely in the unified reveal grammar (§4/§6).
+
+### Counters are NOT scroll-linked
+
+The Results stat counters stay on the self-timed count-up cascade in
+`animated-stat.tsx` (§6) — `IntersectionObserver` fires once on entry, then each
+stat counts 0 → final on `duration-hero`, the next starting two-thirds of the
+way through the previous one.
+
+This was tried scroll-linked and reverted. Tying a counter to scroll position
+replaces the count-up *animation* with scrollbar tracking: the number becomes a
+readout of how far you've scrolled, and anyone who lands with the section
+already in view never sees it count at all. The animation is the point.
+
+Scroll-linking suits **continuous, decorative** properties (a parallax offset
+has no "finished" state). It does not suit anything with a meaningful start and
+end, which is what a counter is.
 
 ---
 
@@ -239,9 +338,13 @@ Explicitly not used anywhere in this system:
 
 Wired in the codebase as of this revision:
 
-1. **Tokens** — `app/globals.css` (`:root` custom properties + reduced-motion override), `tailwind.config.ts` (`transitionDuration`, `transitionTimingFunction`, `menu-in` keyframe).
+1. **Tokens** — `app/globals.css` (`:root` custom properties incl. `cinematic`/`epic`/`ease-cine` + reduced-motion override, `radar-sweep` keyframe), `tailwind.config.ts` (`transitionDuration`, `transitionTimingFunction`, `menu-in` keyframe).
 2. **No-JS safety** — `app/layout.tsx` (`beforeInteractive` script adds `.js` to `<html>`).
-3. **Reveal** — `components/site/reveal.tsx` (IntersectionObserver, `variant`, `delay`, `duration`).
-4. **Hero** — `components/home/hero.tsx` (headline → subcopy → masked media sequence).
-5. **All home sections** — `components/home/*.tsx` use `Reveal` for entrance and the shared `transition duration-* ease-standard` pattern for hover/press (products, team, testimonials, blogs, cta, navbar).
-6. **Marquee** — `components/home/trusted-by.tsx` + `tailwind.config.ts` (`animate-marquee`), pre-existing, documented here for completeness and left untouched by this revision.
+3. **Reveal** — `components/site/reveal.tsx` (IntersectionObserver; variants `rise|fade|mask|rise-mask|rise-scale|left|right`; `delay`; `duration` `base|slow|cinematic|epic`, ease auto-selected by tier).
+4. **Hero** — `components/home/hero.tsx` (headline `rise-mask`/cinematic → copy `rise` → ocean `mask`/cinematic tide, LCP-aware).
+5. **All home sections** — every headline shares the `rise-mask`/cinematic grammar (hero, who-we-are, products, results, testimonials, team, blogs, cta); media uses `rise-scale`/cinematic (product cards) and `rise-scale`/epic (cta dashboard); vision-mission panels converge `left`/`right` on the cinematic tier. Hover/press use the shared `transition duration-* ease-standard` pattern.
+6. **Marquee** — `components/home/trusted-by.tsx` + `tailwind.config.ts` (`animate-marquee`), pre-existing, left untouched.
+7. **Scroll-linked layer (§16)** — `components/site/scroll.tsx` (`subscribeScroll`, `Parallax`, `useScrolledPast`); consumed by `navbar.tsx` (condense — size only, the surface itself is a constant opaque white), `hero.tsx` (watermark + callouts), `who-we-are.tsx` (fan + ship), `results.tsx` (dot field; counters stay self-timed).
+8. **Signature ambient** — the radar sweep in `vision-mission.tsx` (`.radar-sweep-anim`, `PauseOffscreen`-wrapped, Mission panel only).
+9. **Micro-interactions** — navbar pill links carry a transform-only underline-trace on hover; the CTA button arrow slides on the `ui` tier; both lean on colour/opacity/fill, not shadow (reference register).
+10. **Form motion** — `tailwind.config.ts` keyframes `field-in`, `panel-in`, `tick-draw` (the `/schedule-demo` success panel), unchanged.

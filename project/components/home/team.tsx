@@ -7,12 +7,16 @@ export function Team() {
     <Section id="team" data-shot="team" className="bg-white">
       <Container>
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <Reveal>
-            <p className="eyebrow mb-4">The Team</p>
-            <h2 className="text-display-md font-semibold text-navy-900">
-              Our professional partners<span className="text-brand-500">.</span>
-            </h2>
-          </Reveal>
+          <div>
+            <Reveal variant="fade">
+              <p className="eyebrow mb-4">The Team</p>
+            </Reveal>
+            <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+              <h2 className="text-display-md font-semibold text-navy-900">
+                Our professional partners<span className="text-brand-500">.</span>
+              </h2>
+            </Reveal>
+          </div>
           <Reveal delay={100}>
             <p className="max-w-xs text-sm leading-relaxed text-navy-400">
               Our leaders are on a mission to reshape how shipping uses data to

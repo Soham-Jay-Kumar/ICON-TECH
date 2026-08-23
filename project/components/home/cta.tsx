@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import { Container } from '@/components/site/section';
 import { Reveal } from '@/components/site/reveal';
 
@@ -37,31 +39,52 @@ export function Cta() {
       />
 
       <Container className="relative">
-        <Reveal className="flex flex-col items-center text-center">
-          <h2 className="max-w-[1200px] text-[clamp(1.75rem,3.47vw,50px)] font-semibold leading-[1.15] tracking-[-0.01em] text-navy-900 md:whitespace-nowrap">
-            Experience these agents working in real time
-            <span className="text-brand-500">.</span>
-          </h2>
-          <p className="mt-[20px] max-w-4xl text-[clamp(1rem,1.39vw,20px)] leading-[1.5] text-[#486068]">
-            See how these agents work to drive efficiency and smarter shipping.
-          </p>
-          <a
-            href="#contact"
-            className="mt-[40px] inline-flex h-[53px] items-center justify-center rounded-full bg-brand-500 px-[30px] text-[15px] font-semibold uppercase tracking-[0.04em] text-white shadow-[0_10px_24px_-6px_rgba(245,130,43,0.55)] transition duration-ui ease-standard hover:bg-brand-600 hover:shadow-pill active:opacity-90"
-          >
-            Book a Demo
-          </a>
-        </Reveal>
+        <div className="flex flex-col items-center text-center">
+          <Reveal variant="rise-mask" duration="cinematic">
+            <h2 className="max-w-[1200px] text-[clamp(1.75rem,3.47vw,50px)] font-semibold leading-[1.15] tracking-[-0.01em] text-navy-900 md:whitespace-nowrap">
+              Experience these agents working in real time
+              <span className="text-brand-500">.</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={120}>
+            <p className="mt-[20px] max-w-4xl text-[clamp(1rem,1.39vw,20px)] leading-[1.5] text-[#486068]">
+              See how these agents work to drive efficiency and smarter shipping.
+            </p>
+          </Reveal>
+          {/* Was `#contact`, which scrolled to the footer artwork — a dead end
+              with no contact form on it. The demo page is the destination both
+              navbar CTAs already use. */}
+          {/* Fill-sweep: a darker fill wipes across left→right on hover (a
+              transform-only `before` layer, clipped to the pill), the label and
+              arrow riding above it. A precise, contained micro-interaction —
+              colour and motion, no shadow theatrics. */}
+          <Reveal delay={200}>
+            <Link
+              href="/schedule-demo"
+              className="group relative mt-[40px] inline-flex h-[53px] items-center justify-center overflow-hidden rounded-full bg-brand-500 px-[30px] text-[15px] font-semibold uppercase tracking-[0.04em] text-white shadow-[0_10px_24px_-6px_rgba(245,130,43,0.55)] transition-shadow duration-ui ease-standard hover:shadow-pill active:opacity-90 before:absolute before:inset-0 before:origin-left before:scale-x-0 before:bg-brand-600 before:transition-transform before:duration-ui before:ease-standard hover:before:scale-x-100"
+            >
+              <span className="relative z-[1] inline-flex items-center gap-2">
+                Schedule a Demo
+                <ArrowRight
+                  aria-hidden
+                  className="h-[18px] w-[18px] transition-transform duration-ui ease-standard group-hover:translate-x-1.5"
+                />
+              </span>
+            </Link>
+          </Reveal>
+        </div>
 
-        <Reveal delay={200} duration="slow">
+        <Reveal delay={200} duration="epic" variant="rise-scale">
           <Image
             src="/images/cta-dashboard.png"
             alt="Fuel Sense playground showing Sense AI's fleet summary for today"
             width={2224}
             height={1066}
             sizes="(max-width: 1200px) 94vw, 1112px"
+            // No `priority`: this sits at the very foot of the page, so
+            // preloading it only competed for bandwidth with the hero, which
+            // is the real LCP candidate.
             className="mx-auto mt-[62px] h-auto w-full max-w-[1112px]"
-            priority
           />
         </Reveal>
       </Container>

@@ -1,6 +1,7 @@
 import { Navbar } from '@/components/site/navbar';
 import { Footer } from '@/components/site/footer';
 import { Hero } from '@/components/home/hero';
+import { ExecutionLayer } from '@/components/home/execution-layer';
 import { WhoWeAre } from '@/components/home/who-we-are';
 import { VisionMission } from '@/components/home/vision-mission';
 import { Products } from '@/components/home/products';
@@ -16,6 +17,7 @@ export default function Home() {
     <main>
       <Navbar />
       <Hero />
+      <ExecutionLayer />
       <WhoWeAre />
       <VisionMission />
       <Products />
