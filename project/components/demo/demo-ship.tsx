@@ -5,22 +5,19 @@ import { PauseOffscreen } from '@/components/site/pause-offscreen';
 import { ShipWake } from '@/components/home/ship-wake';
 
 /**
- * The execution-deck vessel, brought over to /schedule-demo.
+ * The site's maritime vessel motif, used on /schedule-demo.
  *
  * Same sprite (public/images/exec-ship.png), same slow linear passage, same
- * particle wake laid down by the propeller (see ship-wake.tsx) as the ship on
- * the home page's "Starting with maritime…" band — it just sails the left
- * copy column here instead of the full width of the section, so it reads as
- * the same vessel having carried on past the home page rather than a second
- * unrelated animation.
+ * particle wake laid down by the propeller (see ship-wake.tsx), sailing the
+ * left copy column as a continuation of the site's maritime visual language.
  *
- * Two mechanical differences from the home version:
+ * Two mechanical differences from the full-width version:
  *
  * - The loop itself: `.ship-sail-anim` spans viewport units, which in a
  *   half-width column would park the ship off the right edge for most of
  *   every cycle. `.ship-sail-contained-anim` spans a percentage of the band
  *   instead, so the crossing fills the column.
- * - The column is much narrower than the home band's full viewport width, so
+ * - The column is much narrower than the full-width version's viewport, so
  *   the ship's own width is a large fraction of it — large enough that a
  *   spatial fade (a mask/clip at the column edges) visibly dissolves the hull
  *   piece by piece as it crosses the boundary, reading as the ship
@@ -81,7 +78,7 @@ export function DemoShip({ className }: { className?: string }) {
 
   return (
     // Hidden below `md`, where the column is the full page width and the copy
-    // and form already fill it — matching the home band's own breakpoint so
+    // and form already fill it — matching the full-width version's breakpoint so
     // the particle sim never runs on a phone.
     //
     // `overflow-hidden` is a hard, unambiguous clip — the CSS-only fallback

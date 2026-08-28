@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { HeroWaves } from '@/components/home/hero-waves';
 import type { ShipPose } from '@/components/home/hero-water-flow';
 import {
+  HERO_SHIP_SCALE,
   SHIP_BOX,
   SHIP_DY_PCT_PER_REF_PX,
   SHIP_PIVOT,
@@ -28,15 +29,15 @@ import {
 // that does go through state is whether the canvas has ever painted, which
 // happens once.
 //
-// Under both of them sits the printed ocean, which is what the hero shows until
-// the canvas has something of its own — and, with JavaScript off or the wave
-// field unreachable, permanently. It is not a poster for a loading spinner: at
-// frame zero the canvas draws this same sea, so the handover is invisible.
+// Under both of them sits a ship-free still rendered from waves.svg. It is what
+// the hero shows until the canvas has something of its own — and, with
+// JavaScript off or the wave field unreachable, permanently. Because it comes
+// from the same wave artwork, the handover is invisible without reviving the
+// original full-size hull behind the scaled foreground ship.
 //
-// It blends with `multiply`, like the plate it was cut from, and for the same
-// reason: the left callout's label sits inside the water band, under all of
-// this. An opaque still covered it outright — multiply lets it through, exactly
-// as the undivided artwork did.
+// It blends with `multiply` because the left callout's label sits inside the
+// water band, under all of this. An opaque still covered it outright; multiply
+// lets it through while the ship-free white background remains neutral.
 // ---------------------------------------------------------------------------
 
 export function HeroSea({
@@ -70,7 +71,7 @@ export function HeroSea({
       if (el) {
         el.style.transform =
           `translate3d(0, ${(dy * SHIP_DY_PCT_PER_REF_PX).toFixed(4)}%, 0)` +
-          ` rotate(${roll.toFixed(4)}deg)`;
+          ` rotate(${roll.toFixed(4)}deg) scale(${HERO_SHIP_SCALE})`;
       }
       onExternalPose?.({ dy, roll });
     },
@@ -94,8 +95,9 @@ export function HeroSea({
           blending, not the plate's `multiply`: multiplied against the water
           below it the hull would darken every time a wash passed under it.
 
-          It renders untransformed, so with JavaScript off — or before the water
-          has loaded — the hero is the artwork, at rest, exactly as drawn. */}
+          Its resting 75% scale is present in the rendered style, so JavaScript
+          being absent or the water loading slowly cannot revive the original
+          full-size ship. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={shipRef}
@@ -113,6 +115,7 @@ export function HeroSea({
           top: SHIP_BOX.top,
           width: SHIP_BOX.width,
           height: SHIP_BOX.height,
+          transform: `scale(${HERO_SHIP_SCALE})`,
           transformOrigin: SHIP_PIVOT,
           willChange: 'transform',
         }}

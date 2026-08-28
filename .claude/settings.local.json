@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npm run *)",
       "Bash(break)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Read(//Users/tulikaprasad/.nvm/versions/**)",
+      "Read(//usr/local/Cellar/node/26.0.0/bin/**)"
     ]
   }
 }

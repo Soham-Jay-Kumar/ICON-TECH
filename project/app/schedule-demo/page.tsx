@@ -23,13 +23,10 @@ const STEPS = [
  * The lead-capture page, staged as a dark command deck rather than a white
  * form page.
  *
- * It borrows the home page's execution band ("Starting with maritime, Icon
- * Tech turns…") wholesale: the same deep-navy radial ground, the same faint
- * dot field, the same signature radar sweep and sonar rings, the same white
- * statement with a single orange full stop, and — down the left column — the
- * same vessel sailing past on its slow loop, laying the same particle wake.
- * The two pages now read as one continuous deck, and the CTA lands somewhere
- * that looks like the section it was clicked from.
+ * It uses the site's shared dark maritime deck language: a deep-navy radial
+ * ground, a faint dot field, a signature radar sweep and sonar rings, a white
+ * statement with a single orange full stop, and — down the left column — a
+ * vessel sailing past on its slow loop, laying a particle wake.
  *
  * The form itself deliberately stays a white card. It is the one thing on the
  * page a visitor has to *do*, and a bright surface on a dark ground is what
@@ -47,7 +44,7 @@ export default function ScheduleDemo() {
         data-shot="schedule-demo"
         className="relative overflow-hidden bg-navy-950 pb-20 pt-[104px] md:pb-28 md:pt-[calc(4.9vw+72px)]"
         style={{
-          // Mirrors the execution band's ground, flipped: the glow sits over
+          // Mirrors the site's dark deck ground, flipped: the glow sits over
           // the copy column so the type has the light behind it and the form
           // card lands on the darkest part of the field.
           backgroundImage:
@@ -61,8 +58,7 @@ export default function ScheduleDemo() {
         />
 
         {/* The signature radar sweep + sonar rings, anchored off the left edge
-            behind the copy (the execution band anchors them right, behind
-            its own type). Ambient loop, so it sits inside PauseOffscreen and
+            behind the copy. Ambient loop, so it sits inside PauseOffscreen and
             freezes off-screen and under reduced motion. Hidden on small
             screens where it would crowd the heading. */}
         <PauseOffscreen
@@ -114,7 +110,7 @@ export default function ScheduleDemo() {
                 </p>
 
                 {/* Base tone is pure white; the terminal full stop keeps the
-                    page's one orange accent, exactly as on the home band. */}
+                    page's one orange accent. */}
                 <h1 className="mt-6 text-[clamp(2rem,3.6vw,56px)] font-medium leading-[1.2] tracking-[-0.01em] text-white">
                   See how AI agents can close your execution gap
                   <span className="text-[#FA8837]">.</span>
@@ -140,8 +136,8 @@ export default function ScheduleDemo() {
                 </ol>
               </Reveal>
 
-              {/* The vessel from the home page's execution band, sailing the
-                  foot of this column. `mt-auto` drops it to the bottom of the
+              {/* The shared maritime vessel sails along the foot of this
+                  column. `mt-auto` drops it to the bottom of the
                   stretched cell once the layout goes side-by-side; below `lg`
                   it just follows the list at a fixed remove. No padding here —
                   the band is a fixed-height box and padding would eat the hull. */}

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "assets:hero": "python3 scripts/build-hero-masks.py && node scripts/build-hero-water-still.js",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

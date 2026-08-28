@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * ShipWake — the propeller wash behind the execution-deck vessel.
+ * ShipWake — the propeller wash behind the site's maritime vessel motif.
  *
  * This is an *emitter*, not a trail graphic. The wake used to be a single
  * dotted gradient strip parented to the ship, so the dots were rigidly welded

@@ -10,13 +10,14 @@ const stats = [
   { value: '24/7', label: 'AI-Driven Fleet Monitoring' },
   { value: '30%', label: 'Faster operational decision-making' },
   { value: '50%', label: 'Reduction in manual reporting & analysis' },
+  { value: '5%', label: 'Fuel savings potential' },
 ];
 
 export function Results() {
   const gridRef = useRef<HTMLDivElement>(null);
   // -1 = nothing has started yet; each stat bumps this two-thirds of the way
   // through its own count, so 30% starts while 24/7 is still finishing its
-  // last third, and 50% starts while 30% is still finishing its last third.
+  // last third; the same cascade continues through all four values.
   const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export function Results() {
         </Reveal>
         <div
           ref={gridRef}
-          className="mt-16 grid gap-12 md:grid-cols-3 md:gap-8"
+          className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4 md:gap-6 lg:gap-8"
         >
           {stats.map((stat, i) => (
             <Reveal key={stat.value} delay={i * 100}>

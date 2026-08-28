@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-build-hero-masks.py — split the hero plate into its three layers.
+build-hero-masks.py — split the hero plate into its static and moving layers.
 
-The hero shows one illustration (public/images/hero-ocean.png) carrying content
-that has to behave three different ways, so it is served as three layers, all
-cut from that one file here:
+The hero starts as one illustration (public/images/hero-ocean.png), but its
+content has to behave three different ways. This script cuts the static plate
+and moving ship from it; the water layers come from the canonical waves.svg.
 
-  hero-land-mask.png   alpha = 1 above the waterline, minus the ship and its
-                       two callout leaders; 0 across the whole water band.
-                       Applied to the base <img>, it leaves the sky, the
-                       horizon and nothing else.
+  hero-land-mask.png   alpha = 1 above the waterline except across the original
+                       full-size ship footprint; 0 across the whole water band.
+                       Applied to the base <img>, it leaves only the clean sky
+                       and horizon behind the independently scaled ship.
 
   hero-ship.png        the ship and both leaders, as an RGBA cutout with the
                        white page unmultiplied out of it.  Drawn over the water
@@ -19,15 +19,14 @@ cut from that one file here:
                        own geometry across the whole band, with nothing masked
                        out of it.
 
-  hero-water-still.jpg the printed ocean, cropped to the band.  It sits under
-                       the canvas and is hidden the moment the canvas paints its
-                       first frame, so it only ever shows when the canvas has
-                       not: before the wave field has loaded, if it never loads,
-                       and with JavaScript off.  Without it the hero shows a
-                       ship on a blank white sea in all three cases.
+  hero-water-still.jpg is generated separately from the ship-free waves.svg by
+                       scripts/build-hero-water-still.js. It sits under the
+                       canvas until the first animated frame paints, and remains
+                       available when the wave field or JavaScript is absent.
 
-The three sum to the illustration at every pixel, so a frozen frame reassembles
-the plate with no seam and no doubled surface.
+The layers intentionally no longer sum to the original flattened illustration:
+the foreground ship is scaled independently, so every trace of its old full-size
+footprint must be absent from both the static plate and the water fallback.
 
 Why the ship is cut out rather than held in place by a mask: it has to move, and
 a hole in a mask cannot.  Cutting it out also removed the halo the old two-mask
@@ -37,7 +36,8 @@ painted nothing: a soft pale fringe hugging the hull.  There is no such ring
 now; the water runs continuously behind the ship, and the lattice reaches the
 hull the way it does in reference-waves.mp4.
 
-Needs Pillow + numpy.  Run from project/:  python3 scripts/build-hero-masks.py
+Needs Pillow + numpy. Run the complete workflow from project/ with:
+  npm run assets:hero
 """
 import numpy as np
 from PIL import Image, ImageFilter
@@ -45,13 +45,20 @@ from PIL import Image, ImageFilter
 SRC = "public/images/hero-ocean.png"
 LAND = "public/images/hero-land-mask.png"
 SHIP = "public/images/hero-ship.png"
-STILL = "public/images/hero-water-still.jpg"
 
 # The plate is the reference cropped at y=392 (see build-hero-asset.py), and
 # waves.svg is authored in reference coordinates, so its viewBox — y 690..1050
 # — is this band of the plate.  The water canvas covers exactly that band.
 CROP_Y = 392
 BAND_TOP = 690 - CROP_Y          # 298
+
+# The moving ship uses a tight matte so it does not carry the page or a pale
+# halo with it. That matte deliberately ignores near-white/cyan pixels, so the
+# static plate needs a separate, broader cut: otherwise those original-size
+# pixels become visible as soon as the foreground ship is scaled down. The sky
+# throughout this box is the page's solid white, making a deterministic alpha
+# cut both cleaner and safer than lowering the sprite's ink threshold.
+STATIC_SHIP_CLEANUP_BOX = (384, 0, 1250, BAND_TOP)
 
 # Where the ship can be.  Deliberately generous; the silhouette is measured
 # inside it, not assumed to fill it.
@@ -67,6 +74,23 @@ LEADER_BOXES = (
     (1080, 215, 1240, 235),       # right: over sky, into the hull
 )
 LEADER_MAX_L = 140
+
+# The two callout markers, in plate px: centre x, centre y, radius.
+#
+# They are pale discs — a white core inside a dusty-rose ring — drawn over the
+# hull in the source artwork, and that is exactly what the sky matte below
+# cannot see. That matte reads alpha as distance from white
+# (`alpha = 1 - min(RGB)/255`), which is the right model for a hull against the
+# white page and the wrong one for a deliberately pale mark ON the hull: the
+# white core came out at alpha 0 and the ring at 0.45-0.58, so the finished
+# cutout let the moving water show straight through the marker. Measured by
+# radial profile off hero-ocean.png, both discs run to r~21 before they reach
+# hull red, and the artwork itself is fully opaque there.
+#
+# So the discs are forced to alpha 1 after the matte is assembled. The
+# unmultiply that follows turns alpha 1 back into the source colour exactly, so
+# this restores the reference's own marker rather than inventing one.
+CALLOUT_MARKERS = ((979, 274, 21), (629, 364, 21))
 
 # Ink floor for the tight matte above the waterline.  hero-ocean.png has a very
 # faint copy of the "AI DRIVEN / SHIPPING" watermark baked into it at ~0.07 ink;
@@ -222,6 +246,13 @@ def main():
     cut = blur(cut, FEATHER)
     ship[BAND_TOP:] = cut[BAND_TOP:]
 
+    # The callout markers are pale by design, and the mattes above measure ink,
+    # so they read as holes. Stamp them solid before the unmultiply — see
+    # CALLOUT_MARKERS.
+    yy, xx = np.ogrid[:H, :W]
+    for mx, my, mr in CALLOUT_MARKERS:
+        ship[(xx - mx) ** 2 + (yy - my) ** 2 <= mr * mr] = 1.0
+
     # Unmultiply the white page out of the colours, so the cutout composites
     # normally over moving water instead of darkening it.  Over white this is
     # identical to the multiply blend the plate uses; over water it gives the
@@ -237,8 +268,10 @@ def main():
     save_rgba(rgb[by0:by1, bx0:bx1], ship[by0:by1, bx0:bx1], SHIP)
 
     # ---- assemble the plate ---------------------------------------------
-    # Everything the ship layer took, the plate gives up; and the whole water
-    # band goes, because the canvas paints all of it.
+    # Everything the ship layer took, the plate gives up; the original ship's
+    # complete sky-side footprint goes too, including pale pixels that were too
+    # close to white to belong in the moving sprite. The whole water band also
+    # goes, because the canvas paints all of it.
     #
     # The cut is BINARY, not `1 - ship`.  The plate is a multiply layer, and a
     # multiply at partial alpha does not subtract cleanly from a normal-blended
@@ -249,17 +282,17 @@ def main():
     # ship ink over it is the white page — and white is multiply's identity, so
     # removing it changes nothing at all.
     land = 1.0 - (ship > MATTE_EPS).astype(float)
+    cx0, cy0, cx1, cy1 = STATIC_SHIP_CLEANUP_BOX
+    land[cy0:cy1, cx0:cx1] = 0.0
     land[BAND_TOP:, :] = 0.0
+
+    # Generation-time invariants for the regions whose transparency keeps an
+    # unscaled ship from resurfacing in either sky or water.
+    assert not np.any(land[cy0:cy1, cx0:cx1])
+    assert not np.any(land[BAND_TOP:, :])
     save_alpha(land, LAND)
 
-    # ---- the still fallback ---------------------------------------------
-    # Straight out of the artwork, the band the canvas covers. JPEG because it
-    # is a photographic gradient with no alpha and it is on the critical path.
-    Image.open(SRC).convert("RGB").crop((0, BAND_TOP, W, H)).save(
-        STILL, quality=86, optimize=True, progressive=True)
-
     print("%s %dx%d" % (LAND, W, H))
-    print("%s %dx%d" % (STILL, W, H - BAND_TOP))
     print("%s %dx%d at plate (%d, %d)-(%d, %d)   <- SHIP_RECT" %
           (SHIP, bx1 - bx0, by1 - by0, bx0, by0, bx1, by1))
     print("hull rows %d..%d, waterline (boot-topping foot) %d" %

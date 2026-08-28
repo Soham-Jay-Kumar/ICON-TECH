@@ -79,7 +79,7 @@ async function gotoReady(page, url) {
 
     const prev = page.getByLabel('Previous articles');
     await prev.scrollIntoViewIfNeeded();
-    // 8 clicks takes offset past -posts.length (5), which used to index off
+    // 8 clicks takes offset well past -posts.length, which used to index off
     // the front of the array and throw on `post.title`.
     for (let i = 0; i < 8; i++) await prev.click();
     await page.waitForTimeout(200);
@@ -89,7 +89,7 @@ async function gotoReady(page, url) {
       .count();
     check(
       'R1 blogs: 8 back-clicks do not crash',
-      errors.length === 0 && cardCount === 5,
+      errors.length === 0 && cardCount === 2,
       `errors=${errors.length} cards=${cardCount}`
     );
 
@@ -99,7 +99,7 @@ async function gotoReady(page, url) {
     const cardCountFwd = await page.locator('#blogs a.group h3').count();
     check(
       'R1 blogs: 13 forward-clicks do not crash',
-      errors.length === 0 && cardCountFwd === 5,
+      errors.length === 0 && cardCountFwd === 2,
       `errors=${errors.length} cards=${cardCountFwd}`
     );
     await page.close();

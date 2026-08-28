@@ -18,24 +18,6 @@ const posts = [
     image:
       'https://images.pexels.com/photos/14616108/pexels-photo-14616108.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
   },
-  {
-    title: 'From Noon Reports To Real-Time Fleet Data',
-    date: 'September 28, 2026',
-    image:
-      'https://images.pexels.com/photos/35860170/pexels-photo-35860170.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    title: 'Five Signals Your Vessel Is Quietly Burning Money',
-    date: 'September 14, 2026',
-    image:
-      'https://images.pexels.com/photos/31365425/pexels-photo-31365425.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
-  {
-    title: 'Inside The Autonomous Port Call Of The Future',
-    date: 'August 30, 2026',
-    image:
-      'https://images.pexels.com/photos/14810115/pexels-photo-14810115.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-  },
 ];
 
 function BlogCard({
@@ -113,13 +95,6 @@ export function Blogs() {
           {rotated.slice(0, 2).map((post, i) => (
             <Reveal key={post.title} delay={i * 100}>
               <BlogCard post={post} tall />
-            </Reveal>
-          ))}
-        </div>
-        <div className="mt-12 grid gap-x-6 gap-y-12 md:grid-cols-3">
-          {rotated.slice(2, 5).map((post, i) => (
-            <Reveal key={post.title} delay={i * 100}>
-              <BlogCard post={post} />
             </Reveal>
           ))}
         </div>

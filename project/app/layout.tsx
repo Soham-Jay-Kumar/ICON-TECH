@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Poppins, Anton } from 'next/font/google';
+import { Poppins } from 'next/font/google';
+import localFont from 'next/font/local';
 import { SITE_URL } from '@/lib/site';
 
 const poppins = Poppins({
@@ -10,10 +11,30 @@ const poppins = Poppins({
 });
 
 // The hero's background wordmark is set in a heavy condensed face, not Poppins.
-const anton = Anton({
-  subsets: ['latin'],
-  weight: ['400'],
+//
+// SELF-HOSTED, not next/font/google, and that is deliberate. Fetched from
+// Google this font silently failed to arrive: `next/font/google` could not
+// reach fonts.googleapis.com, emitted ONLY the metric-fallback face
+// (`__Anton_Fallback_*`, with no real `__Anton_*` alongside it), and logged
+// nothing that stopped the build. Everything set in `font-display` then
+// rendered in Impact — or in Times where Impact is absent — while the CSS
+// still looked well-formed. Poppins happened to succeed in the same build,
+// so the failure was invisible unless you diffed the emitted faces.
+//
+// The file is Anton's own latin woff2 (SIL Open Font License), so serving it
+// ourselves is both permitted and deterministic: no build-time network call,
+// identical output on every machine and CI host. The `--font-anton` variable
+// name is unchanged, so tailwind.config.ts's `display` stack and every
+// consumer of `font-display` keep working untouched.
+const anton = localFont({
+  src: './fonts/anton-400.woff2',
+  weight: '400',
+  style: 'normal',
+  display: 'swap',
   variable: '--font-anton',
+  // Matches the tail of tailwind.config.ts's `display` stack, so a failure to
+  // load degrades to the same face the design already expected.
+  fallback: ['Impact', 'sans-serif'],
 });
 
 const TITLE = 'Icon Technology — AI Agents for Shipping and Beyond';

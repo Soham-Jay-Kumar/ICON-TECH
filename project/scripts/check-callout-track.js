@@ -33,7 +33,7 @@ const SAMPLES = Number(process.env.CALLOUT_SAMPLES || 420);
 /** Ship cutout origin and each leader's outer tip, in plate reference px. */
 const SHIP_ORIGIN = { x: 432, y: 2 };
 const TIPS = {
-  'anchor (left)': { tip: { x: 439, y: 319.5 }, label: { x: 114, y: 310 } },
+  'anchor (left)': { tip: { x: 439, y: 319.5 }, label: { x: 30, y: 310 } },
   'fuel (right)': { tip: { x: 1203, y: 227.5 }, label: { x: 1213, y: 217 } },
 };
 

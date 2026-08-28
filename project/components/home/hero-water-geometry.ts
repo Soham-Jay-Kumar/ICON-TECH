@@ -2,25 +2,26 @@
 // Where the water lives in the hero illustration, and how the plate is split
 // into the three things it actually contains.
 //
-// The hero is one illustration (public/images/hero-ocean.png) carrying content
-// that has to behave three different ways, so it is served as three layers,
-// all cut from that one file by scripts/build-hero-masks.py:
+// The hero starts as one flattened illustration
+// (public/images/hero-ocean.png), but its independently scaled ship and moving
+// water are served as separate layers:
 //
 //   1. the plate      — sky and horizon. Still, and the page's LCP element.
-//                       Masked by LAND_MASK_URL, which removes both the printed
-//                       ocean and the ship.
+//                       Masked by LAND_MASK_URL, which removes the printed
+//                       ocean and the original full-size ship footprint.
 //   2. the water      — waves.svg's own contours, washes and dot lattice,
 //                       redrawn every frame by <HeroWaves> and flowing outward
 //                       from the bow. Nothing is masked out of it: the sea runs
 //                       continuously across the band and behind the hull. Under
-//                       it, WATER_STILL_URL holds the printed ocean until the
-//                       canvas has something to show.
+//                       it, WATER_STILL_URL holds a ship-free render of the same
+//                       wave artwork until the canvas has something to show.
 //   3. the ship       — SHIP_URL, a cutout of the hull, the superstructure and
 //                       both callout leaders, drawn over the water with normal
 //                       blending and bobbing on it.
 //
-// The three sum to the illustration at every pixel, so freeze the animation and
-// the hero is the artwork, with the water where waves.svg draws it.
+// They deliberately do not reconstruct the original flattened plate exactly:
+// the ship is 75% of that original size, so the static plate and fallback water
+// must contain no trace of its old full-size footprint.
 //
 // Why the ship is its own layer at all: it has to move, and it cannot move
 // while it is a hole in a mask — bob it and the hole stays behind. Cutting it
@@ -57,9 +58,10 @@ export const WATER_BAND = {
 };
 
 /**
- * Alpha = 1 above the waterline except under the ship layer; 0 across the whole
- * water band. Masks the base <img>, removing both the printed ocean and the
- * hull. The cut under the ship is binary on purpose — see build-hero-masks.py.
+ * Alpha = 1 above the waterline except across the original ship footprint; 0
+ * across the whole water band. Masks the base <img>, removing both the printed
+ * ocean and every pale remnant of the old full-size hull. The broad static cut
+ * is intentionally separate from the moving sprite's tight matte.
  */
 export const LAND_MASK_URL = '/images/hero-land-mask.png';
 
@@ -67,10 +69,11 @@ export const LAND_MASK_URL = '/images/hero-land-mask.png';
 export const WATER_FIELD_URL = '/hero-waves.bin';
 
 /**
- * The printed ocean, cropped to the band. It sits under the canvas and is
+ * A ship-free still generated from waves.svg. It sits under the canvas and is
  * hidden the instant the canvas paints, so it shows only when the canvas has
  * not: before the field has downloaded, if it never does, and with JavaScript
- * off. Without it those all leave the ship on a blank white sea.
+ * off. Keeping it ship-free prevents the old full-size hull from flashing
+ * behind the independently scaled foreground ship.
  */
 export const WATER_STILL_URL = '/images/hero-water-still.jpg';
 
@@ -80,6 +83,13 @@ export const WATER_STILL_URL = '/images/hero-water-still.jpg';
  * instead of multiplying with it.
  */
 export const SHIP_URL = '/images/hero-ship.png';
+
+/**
+ * The requested resting scale for the complete ship layer. The callout leaders
+ * are baked into that layer, so hero.tsx applies this same scale to their text
+ * around the shared waterline pivot.
+ */
+export const HERO_SHIP_SCALE = 0.75;
 
 /**
  * The cutout's footprint in plate pixels — x0, y0, x1, y1 — measured and printed

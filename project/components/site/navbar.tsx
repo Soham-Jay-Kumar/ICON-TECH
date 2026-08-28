@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
@@ -38,11 +38,23 @@ const sizeMin = (
 // nothing. These sections all live on `/`, so name that explicitly.
 const links = [
   { label: 'Home', href: '/' },
+  { label: 'What We Do', href: '/#what-we-do' },
   { label: 'Who We Are', href: '/#about' },
-  { label: 'Products', href: '/#products' },
-  { label: 'Team', href: '/#team' },
   { label: 'Blogs', href: '/#blogs' },
 ];
+
+// The hero is the home destination; every tracked section lives on the same
+// route. `#products` remains tracked even without a visible nav link, so its
+// content keeps its anchor URL without incorrectly highlighting a neighbour.
+const sectionTargets = [
+  { href: '/', selector: '[data-shot="hero"]', hash: '' },
+  { href: '/#what-we-do', selector: '#what-we-do', hash: '#what-we-do' },
+  { href: '/#products', selector: '#products', hash: '#products' },
+  { href: '/#about', selector: '#about', hash: '#about' },
+  { href: '/#blogs', selector: '#blogs', hash: '#blogs' },
+] as const;
+
+const NAVIGATE_SETTLE_MS = 1200;
 
 /**
  * Routes a link through next/link, except for the `/#section` anchors, which
@@ -80,14 +92,52 @@ function NavLink({
 }
 
 export function Navbar() {
-  const [open, setOpen] = useState(false);
-  const condensed = useScrolledPast(CONDENSE_AT);
-  // Derived, not hard-coded: `active: true` used to be baked into the Home
-  // link, so /schedule-demo rendered the Home pill in its current-page
-  // treatment while the visitor was somewhere else entirely. Only the section
-  // anchors' own page counts as "Home"; they all live on `/`.
   const pathname = usePathname();
-  const onHome = pathname === '/';
+  const [open, setOpen] = useState(false);
+  const [activeHref, setActiveHref] = useState<string | null>(
+    pathname === '/' ? '/' : null
+  );
+  const condensed = useScrolledPast(CONDENSE_AT);
+  const headerRef = useRef<HTMLElement>(null);
+  const pendingHrefRef = useRef<string | null>(null);
+  const pendingTimerRef = useRef<number | null>(null);
+
+  const clearPending = useCallback(() => {
+    if (pendingTimerRef.current !== null) {
+      window.clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+    pendingHrefRef.current = null;
+  }, []);
+
+  /** Light the destination at click time, before a smooth anchor scroll ends. */
+  const activateLink = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    // Let modified clicks keep their normal browser meaning (for example,
+    // opening a destination in another tab) without changing this tab's state.
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.shiftKey
+    ) {
+      return;
+    }
+
+    clearPending();
+    setActiveHref(href);
+    pendingHrefRef.current = href;
+    // Native same-page anchor scrolling is smooth. Hold the clicked item while
+    // it settles, then let the scroll spy take back over. Direct user input
+    // clears this state immediately in the effect below.
+    pendingTimerRef.current = window.setTimeout(() => {
+      clearPending();
+      window.dispatchEvent(new Event('scroll'));
+    }, NAVIGATE_SETTLE_MS);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +145,110 @@ export function Navbar() {
     window.addEventListener('resize', close);
     return () => window.removeEventListener('resize', close);
   }, [open]);
+
+  useEffect(() => {
+    if (pathname !== '/') {
+      clearPending();
+      setActiveHref(null);
+      return;
+    }
+
+    let frame = 0;
+    const targetForHash = () =>
+      sectionTargets.find((target) => target.hash === window.location.hash) ??
+      sectionTargets[0];
+
+    const syncFromScroll = () => {
+      // Read the section that occupies the reading area just below the fixed
+      // header, rather than whichever section only touches the viewport edge.
+      const headerBottom = headerRef.current?.getBoundingClientRect().bottom ?? 0;
+      const marker = headerBottom + Math.min(window.innerHeight * 0.32, 260);
+      let next: (typeof sectionTargets)[number] = sectionTargets[0];
+
+      for (const target of sectionTargets.slice(1)) {
+        const section = document.querySelector<HTMLElement>(target.selector);
+        if (section && section.getBoundingClientRect().top <= marker) {
+          next = target;
+        }
+      }
+
+      // Keep the destination lit during the browser's own smooth anchor
+      // scroll, but hand control back as soon as it reaches that section. A
+      // wheel, touch, pointer, or scroll-key interruption clears this pending
+      // state below, so manual navigation always reflects the viewed section.
+      const pendingHref = pendingHrefRef.current;
+      if (pendingHref && pendingHref !== next.href) {
+        setActiveHref(pendingHref);
+        return;
+      }
+      if (pendingHref) clearPending();
+
+      setActiveHref((current) => (current === next.href ? current : next.href));
+
+      // Section changes are navigation state too. Replace rather than push so
+      // ordinary scrolling does not fill the browser history with every label.
+      const nextUrl = `${window.location.pathname}${window.location.search}${next.hash}`;
+      const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (nextUrl !== currentUrl) {
+        window.history.replaceState(window.history.state, '', nextUrl);
+      }
+    };
+
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(syncFromScroll);
+    };
+
+    const syncFromLocation = () => {
+      const target = targetForHash();
+      if (pendingHrefRef.current && pendingHrefRef.current !== target.href) {
+        clearPending();
+      }
+      setActiveHref(target.href);
+      scheduleSync();
+    };
+
+    const interruptPending = () => {
+      clearPending();
+      scheduleSync();
+    };
+    const interruptForScrollKey = (event: KeyboardEvent) => {
+      if (
+        [' ', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(
+          event.key
+        )
+      ) {
+        clearPending();
+        scheduleSync();
+      }
+    };
+
+    window.addEventListener('scroll', scheduleSync, { passive: true });
+    window.addEventListener('resize', scheduleSync);
+    window.addEventListener('hashchange', syncFromLocation);
+    window.addEventListener('popstate', syncFromLocation);
+    window.addEventListener('wheel', interruptPending, { passive: true });
+    window.addEventListener('touchstart', interruptPending, { passive: true });
+    window.addEventListener('pointerdown', interruptPending, { passive: true });
+    window.addEventListener('keydown', interruptForScrollKey);
+    // Wait a frame for initial anchor navigation and the fixed header's layout.
+    frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(syncFromLocation);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', scheduleSync);
+      window.removeEventListener('resize', scheduleSync);
+      window.removeEventListener('hashchange', syncFromLocation);
+      window.removeEventListener('popstate', syncFromLocation);
+      window.removeEventListener('wheel', interruptPending);
+      window.removeEventListener('touchstart', interruptPending);
+      window.removeEventListener('pointerdown', interruptPending);
+      window.removeEventListener('keydown', interruptForScrollKey);
+      clearPending();
+    };
+  }, [clearPending, pathname]);
 
   return (
     // Fixed rather than absolute so the bar persists past the hero. Both are
@@ -110,7 +264,10 @@ export function Navbar() {
     // sections further down, with none of the blur's softness. `condensed`
     // still drives the height/padding shrink below; it no longer touches the
     // surface itself.
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#E8EDF0] bg-white shadow-[0_1px_0_0_rgba(12,37,55,0.05),0_8px_24px_-16px_rgba(12,37,55,0.14)]">
+    <header
+      ref={headerRef}
+      className="fixed inset-x-0 top-0 z-50 border-b border-[#E8EDF0] bg-white shadow-[0_1px_0_0_rgba(12,37,55,0.05),0_8px_24px_-16px_rgba(12,37,55,0.14)]"
+    >
       <div
         className="flex items-center justify-between transition-[padding] duration-ui ease-standard"
         style={{
@@ -149,56 +306,56 @@ export function Navbar() {
             }}
           >
             {links.map((link) => {
-              const active = link.href === '/' && onHome;
-              return (
-              <NavLink
-                key={link.label}
-                href={link.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'relative flex items-center justify-center font-medium uppercase transition-colors duration-micro ease-standard',
-                  active
-                    ? 'bg-white text-[#FA8837]'
-                    : // Underline traces in from the left on hover — a
-                      // transform-only micro-interaction (no layout), the one
-                      // restrained flourish on the nav.
-                      'text-[#0C3D59] after:pointer-events-none after:absolute after:inset-x-[26%] after:bottom-[24%] after:h-px after:origin-left after:scale-x-0 after:bg-[#FA8837] after:transition-transform after:duration-micro after:ease-standard hover:text-[#FA8837] hover:after:scale-x-100'
-                )}
-                style={
-                  active
-                    ? {
-                        height: vw(38),
-                        borderRadius: vw(19),
-                        marginLeft: vw(1),
-                        paddingLeft: vw(14),
-                        paddingRight: vw(31),
-                        fontSize: vw(16.8),
-                      }
-                    : {
-                        paddingLeft: vw(25.5),
-                        paddingRight: vw(25.5),
-                        fontSize: vw(16.8),
-                      }
-                }
-              >
-                {link.label}
-              </NavLink>
+              const active = pathname === '/' && activeHref === link.href;
+              const className = cn(
+                'relative flex items-center justify-center font-medium uppercase transition-colors duration-micro ease-standard',
+                active
+                  ? 'bg-white text-[#FA8837]'
+                  : 'text-[#0C3D59] hover:text-[#FA8837]'
+              );
+              const style = active
+                ? {
+                    height: vw(38),
+                    borderRadius: vw(19),
+                    marginLeft: vw(1),
+                    paddingLeft: vw(14),
+                    paddingRight: vw(31),
+                    fontSize: vw(14.8),
+                  }
+                : {
+                    paddingLeft: vw(25.5),
+                    paddingRight: vw(25.5),
+                    fontSize: vw(14.8),
+                  };
+
+              return link.href ? (
+                <NavLink
+                  key={link.label}
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={className}
+                  style={style}
+                  onClick={(event) => activateLink(event, link.href)}
+                >
+                  {link.label}
+                </NavLink>
+              ) : (
+                <span key={link.label} className={className} style={style}>
+                  {link.label}
+                </span>
               );
             })}
           </nav>
 
-          {/* Reference measures this pill at 177px wide for "BOOK A DEMO"
-              (~119px of caps + ~29px padding a side). "SCHEDULE A DEMO" sets
-              ~161px at the same size, so the box grows to 219px to keep the
-              reference's side padding rather than crowding the label. */}
+          {/* Match the nav-label type size and keep proportional pill padding. */}
           <Link
             href="/schedule-demo"
             className="hidden items-center justify-center whitespace-nowrap bg-[#072637] font-medium uppercase text-white transition duration-ui ease-standard hover:bg-[#0C3D59] hover:opacity-100 active:opacity-80 lg:flex"
             style={{
-              width: size(219, 186, condensed),
-              height: size(54, 42, condensed),
-              borderRadius: size(27, 21, condensed),
-              fontSize: size(16.8, 14.6, condensed),
+              width: size(200, 170, condensed),
+              height: size(50, 40, condensed),
+              borderRadius: size(25, 20, condensed),
+              fontSize: vw(14.8),
             }}
           >
             Schedule a Demo
@@ -218,26 +375,36 @@ export function Navbar() {
         <div className="mx-5 mt-3 animate-menu-in rounded-2xl border border-[#E6EDF1] bg-white px-5 pb-5 pt-3 shadow-lg motion-reduce:animate-none lg:hidden">
           <nav className="flex flex-col">
             {links.map((link) => {
-              const active = link.href === '/' && onHome;
-              return (
+              const active = pathname === '/' && activeHref === link.href;
+              return link.href ? (
                 <NavLink
                   key={link.label}
                   href={link.href}
-                  onClick={() => setOpen(false)}
+                  onClick={(event) => {
+                    activateLink(event, link.href);
+                    setOpen(false);
+                  }}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'rounded-lg px-4 py-3 text-sm font-medium uppercase transition-colors duration-micro ease-standard hover:bg-[#FAFAFA]',
+                    'rounded-lg px-4 py-3 text-xs font-medium uppercase transition-colors duration-micro ease-standard hover:bg-[#FAFAFA]',
                     active ? 'text-[#FA8837]' : 'text-[#0C3D59]'
                   )}
                 >
                   {link.label}
                 </NavLink>
+              ) : (
+                <span
+                  key={link.label}
+                  className="rounded-lg px-4 py-3 text-xs font-medium uppercase text-[#0C3D59]"
+                >
+                  {link.label}
+                </span>
               );
             })}
             <Link
               href="/schedule-demo"
               onClick={() => setOpen(false)}
-              className="mt-3 flex h-12 items-center justify-center rounded-full bg-[#072637] text-sm font-medium uppercase text-white transition duration-micro ease-standard active:opacity-80"
+              className="mt-3 flex h-12 items-center justify-center rounded-full bg-[#072637] text-xs font-medium uppercase text-white transition duration-micro ease-standard active:opacity-80"
             >
               Schedule a Demo
             </Link>

@@ -77,7 +77,7 @@ const useIsomorphicLayoutEffect =
  * `rise`/`fade`/`left`/`right`/`rise-scale` animate the observed node directly
  * — opacity/transform don't affect IntersectionObserver's geometry, and many
  * consumers rely on this node being the `position: relative` containing block
- * for their own absolutely-positioned children (e.g. team tiles), which an
+ * for their own absolutely-positioned children (e.g. media tiles), which an
  * extra wrapper would silently break.
  *
  * `mask` (clip-path) and `rise-mask` (overflow-clipped slide) are the two
