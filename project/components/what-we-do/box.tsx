@@ -43,7 +43,9 @@ function ground(tone: Tone) {
  * out of nothing, the art pushes forward. Here what the card gives you is the
  * whole story it has to tell, so the micro-cues that used to stand in for that
  * (a widening rule, an unfolding "Explore" row) are gone. The reveal is the
- * payoff, and a static Explore mark at rest is all the affordance it needs.
+ * payoff. At rest the one cue is the Explore mark, whose arrow nudges on a
+ * slow idle loop — a phone never hovers, so without it nothing told a touch
+ * reader the card would turn over at all.
  *
  * Three triggers drive the same reveal, written out longhand at every use
  * because Tailwind's scanner only sees class names that appear literally:
@@ -89,6 +91,11 @@ export function Box({
       onClick={onToggle}
       className={cn(
         't-learn group relative isolate block w-full overflow-hidden rounded-[3px] text-left',
+        // The arrow cursor, not the hand: on a pointer device the card opens
+        // on hover alone, so there is nothing to click and the hand would
+        // promise an action that isn't there. Touch never shows a cursor, so
+        // the tap-to-open latch is unaffected.
+        'cursor-default',
         // Fixed height from `md` up, where both faces stack on top of each
         // other: the taller one (the products reveal) has to fit without the
         // card resizing as the cursor crosses it.
@@ -142,13 +149,17 @@ export function Box({
           {body}
         </span>
 
-        {/* Static, because this whole face is on its way out the moment
-            anything happens — an animated cue here would compete with the
-            reveal rather than lead into it. */}
-        <span className="mt-7 inline-flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.14em] text-white/90 md:text-[13px]">
+        {/* The card's only affordance at rest, so it has to be read at a
+            glance on a phone, where no hover will ever hint at the reveal:
+            sized up from the old 12/13px, and its arrow runs the Explore cue
+            (`t-explore-cue`, app/transitions.css) — it flies out forward and
+            back in — until the card is hovered, focused or tapped open. */}
+        <span className="t-explore-cue mt-8 inline-flex items-center gap-3 text-[16px] font-semibold uppercase tracking-[0.14em] text-white md:text-[19px]">
           Explore
           {/* transitions.dev learn-more hover, driven by the card's `t-learn`. */}
-          <LearnArrow className="h-4 w-4" strokeWidth={2.2} />
+          <span className="t-explore-arrow">
+            <LearnArrow className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={2.2} />
+          </span>
         </span>
       </span>
 

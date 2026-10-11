@@ -372,8 +372,8 @@ export function RevealConsulting() {
         </span>
 
         {/* The site's own text, in place of the one painted out of the clip —
-            see the docblock. Colour and wording are the source frame's own
-            ("Our AI Solutions..." / orange on "AI Solutions" only).
+            see the docblock. Colour is the source frame's own; the wording
+            ("Digital Strategy and Roadmaps") replaced the frame's.
             `text-shadow` carries legibility where the vignette has faded. */}
         <span className="relative block px-3.5 pt-3 sm:px-5 md:pointer-events-none md:absolute md:inset-x-0 md:bottom-0 md:px-7 md:pb-3 md:pt-0">
           <span
@@ -385,17 +385,15 @@ export function RevealConsulting() {
               } as React.CSSProperties
             }
           >
-            Our <span className="text-[#FA8837]">AI Solutions</span>
+            Digital Strategy
             <br />
-            Consulting &amp; Custom
-            <br />
-            Solutions Development
+            and Roadmaps<span className="text-[#FA8837]">.</span>
           </span>
           <span
             className="t-stagger-line mt-1.5 text-[11px] font-medium leading-snug text-white/90 md:text-[12.5px]"
             style={{ textShadow: SHADOW, '--t-line': 1 } as React.CSSProperties}
           >
-            Empowering Enterprises with Intelligent AI Solutions
+            Assess Maturity, Set Priorities And Plan Transformation
           </span>
         </span>
       </span>

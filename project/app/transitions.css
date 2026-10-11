@@ -130,6 +130,9 @@
   --learn-in: 350ms;
   --learn-out: 350ms;
   --learn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Explore cue (project wiring; not a recipe variable) */
+  --explore-period: 2400ms;
+  --explore-travel: 14px;
   /* Spinning counter */
   --reel-dur: 1400ms;
   --reel-cell: 30px;
@@ -599,6 +602,38 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .t-stagger-hover .t-stagger-line { transition: none !important; }
+}
+
+/* Explore cue (the What We Do cards' "Explore →" at rest). Learn-more hover
+   only answers a hover, and a phone never fires one — so a card that turns
+   over on tap gave a touch reader no sign that it could, and a gentle nudge
+   of the learn-more arrow on a loop proved too quiet to notice. Instead the
+   arrow flies through, built from the page side-by-side and icon swap
+   values: after a beat of stillness it slides out forward through the icon
+   swap's 2px blur and fades, then a fresh one slides in from behind and
+   settles. It points at the action — "go this way" — rather than wobbling
+   in place. (An orange shimmer across the word ran alongside it at first;
+   it was removed on request.)
+
+   No overshoot (TRANSITIONS.md §15). The whole cue stops the moment the card
+   is hovered, focused or tapped open — the reveal is the payoff, and the
+   learn-more hover takes over from there. Sanctioned ambient loop (§13),
+   gated off-screen by PauseOffscreen. */
+.t-explore-arrow {
+  display: inline-flex;
+  animation: t-explore-arrow var(--explore-period) var(--icon-swap-ease) infinite;
+}
+:is(.t-learn:hover, .t-learn:focus-visible, .t-learn[data-on="true"]) .t-explore-cue .t-explore-arrow {
+  animation: none;
+}
+@keyframes t-explore-arrow {
+  0%, 40%   { transform: translateX(0); opacity: 1; filter: none; }
+  56%       { transform: translateX(var(--explore-travel)); opacity: 0; filter: blur(var(--icon-swap-blur)); }
+  56.01%    { transform: translateX(calc(var(--explore-travel) * -1)); opacity: 0; filter: blur(var(--icon-swap-blur)); }
+  74%, 100% { transform: translateX(0); opacity: 1; filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-explore-arrow { animation: none !important; }
 }
 
 /* Error state shake, message entrance. The recipe fades a message that is

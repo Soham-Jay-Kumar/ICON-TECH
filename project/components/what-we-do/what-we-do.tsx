@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Container } from '@/components/site/section';
 import { Box } from '@/components/what-we-do/box';
+import { PauseOffscreen } from '@/components/site/pause-offscreen';
 
 type CardId = 'ai-consulting' | 'ai-products';
 
@@ -43,8 +44,9 @@ export function WhatWeDo({
             tiles in a row, and in a half-width card below 1280px they squeeze
             to ~99px — narrow enough that the longest stage sentence wrapped to
             seven lines and pushed the loop rule out of the card. Stacking
-            gives each card the full column and keeps the tiles legible. */}
-        <div className="grid gap-5 xl:grid-cols-2 xl:gap-6">
+            gives each card the full column and keeps the tiles legible.
+            PauseOffscreen because the Explore arrows nudge on an idle loop. */}
+        <PauseOffscreen className="grid gap-5 xl:grid-cols-2 xl:gap-6">
           <Box
             id="box-ai-consulting"
             revealId="reveal-ai-consulting"
@@ -75,7 +77,7 @@ export function WhatWeDo({
             body="Designing and deploying AI systems integrated into real operational environments."
             reveal={products}
           />
-        </div>
+        </PauseOffscreen>
       </Container>
     </div>
   );

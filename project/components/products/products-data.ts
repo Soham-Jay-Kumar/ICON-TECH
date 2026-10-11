@@ -33,7 +33,8 @@ export const PRODUCTS: Product[] = [
     name: 'Fuel Sense',
     logo: { src: '/images/products/fuel-sense-logo.png', width: 600, height: 160 },
     cardHeading: 'AI agentic operating system that automates the fuel efficiency lifecycle',
-    cardSubtext: 'Enabling faster decisions, higher productivity, and maximise fuel savings',
+    // `\n` is a forced line break (the subtext renders with `pre-line`).
+    cardSubtext: 'Enabling faster decisions, higher productivity, and maximise fuel\nsavings',
     alert: {
       vessel: 'MV Blue Ocean',
       date: '12 Jan',

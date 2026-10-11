@@ -120,10 +120,10 @@ function ProductContent({ product }: { product: Product }) {
           alt={`${product.name} logo`}
           className="block h-[calc(56*var(--u))] w-auto"
         />
-        <h4 className="mt-[calc(18*var(--u))] max-w-[calc(560*var(--u))] text-[calc(24*var(--u))] font-semibold leading-[calc(29*var(--u))] text-[#072636] [text-wrap:balance]">
+        <h4 className="mt-[calc(18*var(--u))] max-w-[calc(560*var(--u))] text-[calc(21*var(--u))] font-semibold leading-[calc(25*var(--u))] text-[#072636] [text-wrap:balance]">
           {product.cardHeading}
         </h4>
-        <p className="mt-[calc(8*var(--u))] max-w-[calc(560*var(--u))] text-[calc(14*var(--u))] leading-[calc(22*var(--u))] text-[#3E5E72] [text-wrap:balance]">
+        <p className="mt-[calc(8*var(--u))] max-w-[calc(560*var(--u))] text-[calc(14*var(--u))] leading-[calc(22*var(--u))] text-[#3E5E72] [text-wrap:balance] whitespace-pre-line">
           {product.cardSubtext}
         </p>
         <AlertCard alert={product.alert} />

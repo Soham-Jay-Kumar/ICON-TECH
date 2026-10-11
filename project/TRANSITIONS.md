@@ -189,7 +189,7 @@ No dramatic zoom, Ken Burns, or parallax is applied to any image.
 | Revealed face content | transitions.dev **texts reveal**, hover-driven (`.t-stagger-hover`): each line rises 12px out of a 3px blur over 500ms, 40ms after the one before — eyebrow, heading, summary, the three loop tiles, then the loop line (280ms end to end). The consulting face does the same for its headline, subline and service list |
 | Leaving | The recipe's quiet exit: one 200ms fade, with the Y return and blur deferred until the line is invisible — never the stagger replayed in reverse |
 | Loop tile hover | Its sentence opens via `grid-template-rows` 0fr → 1fr on `ui`/smooth-out — the transitions.dev accordion's values |
-| "Explore →" | transitions.dev learn-more arrow (§9) |
+| "Explore →" | transitions.dev learn-more arrow (§9). At rest it runs the **Explore cue** (`.t-explore-cue`) on a 2.4s loop: after a beat of stillness the arrow flies 14px out forward through the icon swap's 2px blur and fades, and a fresh one slides in from behind and settles (ease-in-out, no overshoot). It is the cards' only affordance on touch, where hover never fires, so it stops the moment a card is hovered, focused or tapped open. (A first cut replayed the learn-more nudge on a loop; it was too subtle to notice. An orange shimmer across the word was then tried alongside the arrow and removed on request.) |
 
 **Sense Series** (`components/products/product-showcase.tsx`):
 
@@ -211,7 +211,7 @@ No dramatic zoom, Ken Burns, or parallax is applied to any image.
 | Nav links (desktop pill) | Text colour → brand orange (`micro`); the white active pill slides between links (§10) | — |
 | "Schedule a Demo" (nav, desktop + mobile) | Background navy-shift | `opacity 80%` |
 | "Schedule a Demo" (CTA section) | **Fill-sweep** — a `brand-600` layer wipes across left→right (`scaleX(0→1)` on a `before` pseudo, clipped to the pill); the arrow is the **learn-more** arrow | `opacity 90%` |
-| "Schedule A Demo" (product panel), "Explore" (What We Do cards) | transitions.dev **learn-more hover**: the arrow shifts 2px forward and its head opens ±8° about the tip (350ms, smooth-out), returning on hover-out | — |
+| "Schedule A Demo" (product panel), "Explore" (What We Do cards) | transitions.dev **learn-more hover**: the arrow shifts 2px forward and its head opens ±8° about the tip (350ms, smooth-out), returning on hover-out. "Explore" also runs the Explore cue at rest (§8) | — |
 | Blog carousel arrows | Border or background colour, `micro`; arrow glyph nudges 2px in its direction of travel | — |
 | Blog card title | Colour → brand, `micro`, tied to card hover via `group` | — |
 
@@ -245,7 +245,7 @@ The learn-more arrow (`components/site/learn-arrow.tsx`) is drawn with lucide's 
 ## 11. Mobile Behavior
 
 - All tokens (durations, easing, distances, blur) are identical on mobile — there is no separate mobile timing scale. The layout already reflows per DESIGN.md; motion just rides along.
-- Hover-only effects (card lift, image zoom, learn-more arrow, link colour) are progressively enhanced: touch devices simply never trigger `:hover`, and no functionality depends on a hover state firing. The What We Do cards latch their reveal on tap (`data-on`), and the texts-reveal stagger keys off that state too.
+- Hover-only effects (card lift, image zoom, learn-more arrow, link colour) are progressively enhanced — except the What We Do "Explore" arrow, whose Explore cue (§8) exists precisely because a touch reader would otherwise get no cue that the cards open: touch devices simply never trigger `:hover`, and no functionality depends on a hover state firing. The What We Do cards latch their reveal on tap (`data-on`), and the texts-reveal stagger keys off that state too.
 - A tapped element can briefly show its `:hover` styling until the next tap elsewhere — native mobile behaviour, left as-is.
 - The mobile menu dropdown, icon swap and all scroll reveals behave identically to desktop.
 
@@ -258,7 +258,7 @@ Every animation in the system honours `prefers-reduced-motion: reduce`, through 
 1. **CSS, sitewide, one place:** `app/globals.css` overrides all six `--motion-duration-*` variables to `0.01ms` inside the media query. Every Tailwind `duration-*` transition and keyframe reads these, so this alone makes them instant.
 2. **Every transitions.dev recipe ships its own guard** (`app/transitions.css`), kept verbatim: tabs pill, dropdown, icon swap, page slide (and the project's page-enter), texts reveal (and its hover variant), shake, error message, success check, text swap, shimmer, skeleton, learn-more, spinning counter. Under reduced motion each one is simply in its end state.
 3. **JS, where motion is orchestrated:** `Reveal` sets content visible immediately and skips the IntersectionObserver; the hero alerts appear at once; `AnimatedStat` renders the plain final number and never builds reels; `TextSwap` swaps the label in place; the mobile menu closes without waiting out the close duration.
-4. **Ambient loops** (radar sweeps, sonar, glyphs, hotspot pulse, ship sail) are removed outright — "make it instant" doesn't make sense for a loop. The hero water stops on its own.
+4. **Ambient loops** (radar sweeps, sonar, glyphs, hotspot pulse, ship sail, the What We Do Explore cue) are removed outright — "make it instant" doesn't make sense for a loop. The hero water stops on its own.
 
 No content is ever hidden by a reduced-motion state — only the motion changes.
 
@@ -268,7 +268,7 @@ No content is ever hidden by a reduced-motion state — only the motion changes.
 
 - Transitions touch `opacity`, `transform`, `filter` (blur), and, for the `mask` reveal, `clip-path`. **Blur exists only in motion:** every hidden state carries it and every rest state has `filter: none` — mount animations use `backwards` fill, never `both`, so nothing is left on a settled element. The spinning counter's vertical SVG blur is decayed to 0 per column and the reels are replaced by plain text when they land.
 - Two transitions.dev recipes animate a layout property, both on out-of-flow elements that cannot reflow anything around them: the tabs pills tween `width` (`position: absolute`), and the loop tiles' sentence uses `grid-template-rows` (the accordion recipe) inside a tile whose height is reserved. The header condense (§10) animates `height`/`padding` on a fixed element.
-- **Ambient loops are deliberately few and all gated off-screen**: the hero water and ship, the Vision/Mission glyphs, the hero hotspot pulse (§5), the radar sweep in the Mission ring scope, and the **Asset Sense radar** in the Sense Series panel (`components/products/asset-radar.tsx` — a conic sweep over fixed targets, `PauseOffscreen`-wrapped, `--radar-duration: 6s`). All but the water are gated by `PauseOffscreen`; the water is a canvas that gates its own clock. The transitions.dev pass added **no** ambient loops except the form's shimmer, which only runs while a request is in flight. **The Asset Sense radar and the Mission radar are untouched by this pass** — the tab switch animates the panel around the radar, not the radar itself, and its sweep keeps running through the switch.
+- **Ambient loops are deliberately few and all gated off-screen**: the hero water and ship, the Vision/Mission glyphs, the hero hotspot pulse (§5), the radar sweep in the Mission ring scope, the What We Do **Explore cue** (§8 — `.t-explore-cue`, the cards wrapped in `PauseOffscreen`), and the **Asset Sense radar** in the Sense Series panel (`components/products/asset-radar.tsx` — a conic sweep over fixed targets, `PauseOffscreen`-wrapped, `--radar-duration: 6s`). All but the water are gated by `PauseOffscreen`; the water is a canvas that gates its own clock. The transitions.dev pass added **no** ambient loops except the form's shimmer, which only runs while a request is in flight, and the Explore cue (arrow fly-through), added on request so the cards read as tappable on phones. **The Asset Sense radar and the Mission radar are untouched by this pass** — the tab switch animates the panel around the radar, not the radar itself, and its sweep keeps running through the switch.
 - `Reveal` disconnects its `IntersectionObserver` the moment it fires — there is no ongoing scroll listener per section after the first reveal.
 - Scroll-linked motion (§16) adds exactly **one** passive, rAF-throttled `scroll` listener for the whole document. Reads and writes are phase-separated within the frame.
 - No JavaScript animation library is used or needed. transitions.dev is CSS recipes, not a dependency: everything is native CSS transitions/keyframes plus small orchestration snippets (class toggles, a reflow, a measured position).
@@ -293,7 +293,7 @@ Explicitly not used anywhere in this system:
 - Spring, elastic, or bounce easing — including transitions.dev's own (`--ease-bounce`, `--ease-bounce-strong`, the toggle and like-button pops). The success check's bob is retuned to smooth-out.
 - **Scroll-jacking** — the page never intercepts, eases, or hijacks the user's own scroll input. (Scroll-*linked* motion is permitted; see §16.)
 - Auto-playing carousels (Sense Series tabs and blogs are user-controlled only).
-- Continuous ambient loops beyond the sanctioned set (§13). No glow, pulse, shimmer, floating, or self-drifting elements at rest — the form shimmer runs only while a request is in flight.
+- Continuous ambient loops beyond the sanctioned set (§13). No glow, pulse, shimmer, floating, or self-drifting elements at rest — the form shimmer runs only while a request is in flight, and the Explore arrow fly-through is the one sanctioned idle cue.
 - Blur on a plain fade, a clip, a colour change, or a settled element (§6, §13).
 - Animating layout-triggering CSS properties on in-flow elements. The exceptions are all out of flow or space-reserved: the tab pills' `width`, the loop tiles' `grid-template-rows`, and the header condense (§13).
 - Re-triggering scroll reveals on every scroll pass (all reveals fire once).
@@ -359,7 +359,7 @@ This was tried scroll-linked and reverted. Tying a counter to scroll position re
 | **Page side-by-side** (enter half) | Sense Series panel swap; blog prev/next | `products/product-showcase.tsx`, `home/blogs.tsx` |
 | **Menu dropdown** | Mobile menu open/close | `site/navbar.tsx` |
 | **Icon swap** | Mobile menu ↔ close glyph | `site/navbar.tsx` |
-| **Learn more hover** | CTA, product "Schedule A Demo", What We Do "Explore" | `site/learn-arrow.tsx` |
+| **Learn more hover** | CTA, product "Schedule A Demo", What We Do "Explore" | `site/learn-arrow.tsx`, `what-we-do/box.tsx` |
 | **Spinning counter** | Results stats | `home/animated-stat.tsx` |
 | **Skeleton loader and reveal** | Blog thumbnails | `home/blogs.tsx` |
 | **Error state shake** | Demo form invalid submit | `demo/demo-form.tsx` |

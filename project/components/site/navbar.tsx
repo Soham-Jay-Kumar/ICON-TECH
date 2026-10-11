@@ -39,13 +39,13 @@ const sizeMin = (
 const links = [
   { label: 'Home', href: '/' },
   { label: 'What We Do', href: '/#what-we-do' },
+  { label: 'Products', href: '/#products' },
   { label: 'Who We Are', href: '/#about' },
   { label: 'Blogs', href: '/#blogs' },
 ];
 
 // The hero is the home destination; every tracked section lives on the same
-// route. `#products` remains tracked even without a visible nav link, so its
-// content keeps its anchor URL without incorrectly highlighting a neighbour.
+// route, and each has a nav link above.
 const sectionTargets = [
   { href: '/', selector: '[data-shot="hero"]', hash: '' },
   { href: '/#what-we-do', selector: '#what-we-do', hash: '#what-we-do' },
