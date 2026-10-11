@@ -1,10 +1,11 @@
 /**
- * check-callout-track.js — do the callout labels move with their own arrows?
+ * check-callout-track.js — do the hero's alert cards stay on their hotspots?
  *
- * The two leader lines and arrowheads are drawn INSIDE the ship raster, so they
- * inherit the hull's transform. The labels are separate DOM text. If the two do
- * not undergo the same displacement at the point where they join, the annotation
- * visibly comes apart as the ship rides the swell.
+ * The two hotspots are markers painted INSIDE the ship raster, so they inherit
+ * the hull's transform. Each alert (card + leader + pulse) is separate DOM that
+ * hero.tsx translates by the displacement it computes for that hotspot. If the
+ * two disagree, the leader visibly slides off its marker as the ship rides the
+ * swell.
  *
  * This measures that directly rather than by eye. For any element with computed
  * matrix M and transform-origin O (element-local px), a local point p is
@@ -13,8 +14,8 @@
  *     d = M·(p − O) + O − p
  *
  * which is independent of where the element sits on the page. So the same page
- * point — each leader's outer tip — is expressed in the ship's local pixels and
- * in its label's local pixels, and the two displacements are compared. They
+ * point — each hotspot's centre — is expressed in the ship's local pixels and
+ * in its alert group's local pixels, and the two displacements are compared. They
  * should agree to well under a pixel at every instant.
  *
  * Sampling is live (the worker drives the real clock) and reads both elements in
@@ -30,12 +31,23 @@ const URL = process.env.SHOOT_URL || 'http://localhost:3000';
 const WIDTH = 1560;
 const SAMPLES = Number(process.env.CALLOUT_SAMPLES || 420);
 
-/** Ship cutout origin and each leader's outer tip, in plate reference px. */
-const SHIP_ORIGIN = { x: 432, y: 2 };
+/**
+ * Ship cutout origin (SHIP_RECT) and each hotspot, in plate reference px.
+ * `tip` is the marker in the raster's own (unscaled) pixels — CALLOUT_MARKERS —
+ * and `label` is the alert group's origin, which spans the whole plate.
+ */
+const SHIP_ORIGIN = { x: 533, y: 2 };
 const TIPS = {
-  'anchor (left)': { tip: { x: 439, y: 319.5 }, label: { x: 30, y: 310 } },
-  'fuel (right)': { tip: { x: 1203, y: 227.5 }, label: { x: 1213, y: 217 } },
+  'hull (left)': { tip: { x: 629, y: 364 }, label: { x: 0, y: 0 } },
+  'fuel (right)': { tip: { x: 979, y: 274 }, label: { x: 0, y: 0 } },
 };
+
+/**
+ * The ship layer's resting scale (HERO_SHIP_SCALE). The alert groups are laid
+ * out at the hotspots' SCALED resting positions and only translate, so what
+ * they must match is the ship's motion away from that rest, not the scale.
+ */
+const SHIP_SCALE = 0.75;
 
 /** Worst per-sample disagreement tolerated, in plate px. */
 const MAX_DRIFT = 0.5;
@@ -76,7 +88,7 @@ const MIN_TRAVEL = 15;
   );
 
   const series = await page.evaluate(
-    async ([n, shipOrigin, tips]) => {
+    async ([n, shipOrigin, tips, scale]) => {
       // A point p (element-local px) with transform-origin O lands at
       // O + M(p - O), so its displacement is M(p - O) + O - p. M's translation
       // terms (e, f) are part of that and must be included — leaving them out
@@ -93,6 +105,12 @@ const MIN_TRAVEL = 15;
           m.b * vx + m.d * vy + m.f + oy - py,
         ];
       };
+      // The same, less the displacement the resting scale alone produces.
+      const poseDisp = (el, px, py) => {
+        const [ox, oy] = getComputedStyle(el).transformOrigin.split(' ').map(parseFloat);
+        const [dx, dy] = disp(el, px, py);
+        return [dx - (scale - 1) * (px - ox), dy - (scale - 1) * (py - oy)];
+      };
       const ship = document.querySelector('[data-hero-ship]');
       const labels = [...document.querySelectorAll('[data-callout-label]')];
       const out = [];
@@ -101,7 +119,7 @@ const MIN_TRAVEL = 15;
         for (const [name, t] of Object.entries(tips)) {
           const label = labels.find((l) => l.dataset.calloutLabel === name);
           row[name] = {
-            ship: disp(ship, t.tip.x - shipOrigin.x, t.tip.y - shipOrigin.y),
+            ship: poseDisp(ship, t.tip.x - shipOrigin.x, t.tip.y - shipOrigin.y),
             label: disp(label, t.tip.x - t.label.x, t.tip.y - t.label.y),
           };
         }
@@ -110,7 +128,7 @@ const MIN_TRAVEL = 15;
       }
       return out;
     },
-    [SAMPLES, SHIP_ORIGIN, TIPS]
+    [SAMPLES, SHIP_ORIGIN, TIPS, SHIP_SCALE]
   );
   await browser.close();
 
@@ -128,8 +146,8 @@ const MIN_TRAVEL = 15;
     const good = worst <= MAX_DRIFT && moved;
     ok &&= good;
     console.log(
-      `${good ? 'PASS' : 'FAIL'} ${name.padEnd(14)} worst label-vs-arrow gap ` +
-        `${worst.toFixed(4)}px (<= ${MAX_DRIFT}); arrow travelled ` +
+      `${good ? 'PASS' : 'FAIL'} ${name.padEnd(14)} worst card-vs-hotspot gap ` +
+        `${worst.toFixed(4)}px (<= ${MAX_DRIFT}); hotspot travelled ` +
         `${range[0].toFixed(1)}..${range[1].toFixed(1)}px ` +
         `(${travel.toFixed(1)}px, needs >= ${MIN_TRAVEL}) over ${series.length} frames`
     );

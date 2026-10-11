@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Reveal } from '@/components/site/reveal';
 import { Parallax } from '@/components/site/scroll';
+import { PauseOffscreen } from '@/components/site/pause-offscreen';
+import { cn } from '@/lib/utils';
 import { HeroSea } from '@/components/home/hero-sea';
 import { HeroWordmarkA } from '@/components/home/hero-wordmark-a';
 import {
+  CALLOUT_MARKERS,
   HERO_SHIP_SCALE,
   LAND_MASK_URL,
   SHIP_PIVOT_REF,
@@ -70,6 +73,16 @@ const FULL_HEADLINE_REF_SIZE = 108;
 const DESKTOP_HEADLINE_SCALE = 0.85;
 const HEADING_REF_SIZE = FULL_HEADLINE_REF_SIZE * DESKTOP_HEADLINE_SCALE;
 const HEADING_MAX_SIZE = '6.8rem';
+// The headline now carries ~40 characters per line where it used to carry
+// ~24, and each line measures 21.7em wide (uppercase, -0.053em tracking). It
+// keeps its original size wherever that fits, and is capped only where a line
+// would run past 88% of the window, so it always holds the two lines the
+// FIT_DIV budget below assumes and the ocean still lands on the first screen.
+// The rem floor applies on phones, where the lines wrap freely. Applies to the
+// headline ONLY: the supporting line and every other measurement are unchanged.
+const LONG_HEADLINE_WIDTH_CAP = `max(${(88 / 21.7).toFixed(3)}vw, 1.75rem)`;
+// Requested "a little smaller" across the board, on top of the fit above.
+const LONG_HEADLINE_TRIM = 0.92;
 const SUBHEAD_REF_SIZE = 40.5;
 // Preserve the original 40.5 / 108 relationship only for the subhead's
 // existing height ceiling; it must not inherit the headline's new 15% cap.
@@ -145,289 +158,251 @@ const SUBHEAD_H_CAP = `calc(${BASE_HEADING_H_CAP} * ${SUBHEAD_RATIO.toFixed(4)})
 
 // Same shape as reveal.tsx's: runs before paint on the client, but avoids the
 // "useLayoutEffect does nothing on the server" warning. It matters for the
-// reduced-motion branch below — setting the sub-line visible in a layout
+// reduced-motion branch below — showing an alert in a layout
 // effect means it is never painted in its hidden state on the frame React
 // hydrates, which is the hidden-then-visible flash reveal.tsx also avoids.
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
-function Callout({
-  x,
-  y,
-  drift,
-  bobRef,
-  name,
-  sub,
-  subDelay = 900,
-  leaderSide,
-  children,
-}: {
-  x: number;
-  y: number;
+// --- The alert cards ------------------------------------------------------
+//
+// Two live alerts annotate the ship: a card on the waves, joined to its
+// hotspot on the hull by a leader. The card is the Products section's alert
+// card (components/products/product-showcase.tsx), so the hero previews the
+// product instead of carrying a label style of its own.
+//
+// Everything below is in plate reference px (1560x630). The hotspots are the
+// ship raster's own markers (CALLOUT_MARKERS), scaled about the waterline pivot
+// exactly as the ship layer is, so each leader lands on the marker the hull
+// actually draws.
+
+/** Where a raster marker sits on the page at rest, in plate px. */
+const atRest = (m: { x: number; y: number }) => ({
+  x: SHIP_PIVOT_REF.x + HERO_SHIP_SCALE * (m.x - SHIP_PIVOT_REF.x),
+  y: SHIP_PIVOT_REF.y + HERO_SHIP_SCALE * (m.y - SHIP_PIVOT_REF.y),
+});
+
+/** Leader stroke, and half of it for squaring the elbow. */
+const LEADER_W = '1.5px';
+const LEADER_HALF = '0.75px';
+/** How far the leader's foot lands in from the card's near edge, in CSS px. */
+const CARD_JOINT = 24;
+
+type HeroAlert = {
   /**
-   * Stable handle for scripts/check-callout-track.js, whose TIPS map keys off
-   * it. POSITIONAL, not semantic — it names which side of the hull the label
-   * sits on, not what the label says, so retitling the copy leaves it alone.
+   * Stable handle for scripts/check-callout-track.js. POSITIONAL, not
+   * semantic — it names the side of the hull, so retitling leaves it alone.
    */
   name: string;
+  marker: { x: number; y: number; r: number };
+  /** The side of the hull the card sits on; the leader runs out that way. */
+  side: 'left' | 'right';
+  /** Where the leader turns down towards the card, in plate px. */
+  elbowX: number;
   /**
-   * Supporting line under the label — what the agent DOES about the alert
-   * above it. Rendered inside the same bobbing span as the label (see
-   * `bobRef`), never as a sibling, so it is carried by the hull's transform
-   * as part of the same annotation rather than drifting against it.
+   * The card's top edge, in plate px. Both sit on the waves, below the
+   * watermark's feet (plate y 382), so neither covers its letters.
    */
-  sub?: React.ReactNode;
-  /**
-   * When the sub-line rises in, ms after mount. It answers the alert, so it
-   * lands after the tide has filled rather than with it (TRANSITIONS.md §5).
-   */
-  subDelay?: number;
-  /**
-   * Which side this callout's leader line approaches from — and therefore the
-   * side the scrim behind the text must NOT overhang.
-   *
-   * The two callouts are mirrored, and their clearances are wildly different.
-   * Left callout: text ends 468.7 with its arrowhead at 522, so ~53px spare on
-   * the right. Right callout: text starts 1102 with its leader tip at 1095, so
-   * barely 7px spare on the left. A symmetric wash would be safe on one and
-   * would pale the dark leader on the other, so the overhang is asymmetric and
-   * this says which way round.
-   */
-  leaderSide: 'left' | 'right';
-  /** Scroll drift in px; the two callouts travel at slightly different rates. */
-  drift: number;
-  /**
-   * The label's own leader line and arrowhead are not a separate element —
-   * they are baked into the ship raster (hero-sea.tsx), riding the hull's
-   * transform. Without this the arrow rocks on the water every ~5s while its
-   * label sits dead still above it, reading as two things that happen to be
-   * near each other rather than one annotation. Set on the inner span (never
-   * the Parallax div, which drives its own scroll-linked transform on that
-   * same node) so the two motions compose instead of fighting over one
-   * `style.transform`.
-   */
-  bobRef?: React.Ref<HTMLSpanElement>;
-  children: React.ReactNode;
+  cardTop: number;
+  /** When the leader starts drawing, ms after mount. */
+  delay: number;
+  title: string;
+};
+
+const ALERTS: HeroAlert[] = [
+  {
+    name: 'hull (left)',
+    marker: CALLOUT_MARKERS.hull,
+    side: 'left',
+    elbowX: 556,
+    cardTop: 466,
+    delay: 900,
+    title: 'Hull performance drops',
+  },
+  {
+    name: 'fuel (right)',
+    marker: CALLOUT_MARKERS.fuel,
+    side: 'right',
+    elbowX: 1012,
+    cardTop: 412,
+    delay: 1050,
+    title: 'Fuel anomaly detected',
+  },
+];
+
+const HOTSPOTS = ALERTS.map((a) => atRest(a.marker));
+
+function AlertCard({
+  title,
+  className,
+  style,
+}: {
+  title: string;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
-  // The sub-line's entrance is timed from mount, NOT driven by <Reveal>.
-  //
-  // Reveal is observer-driven, and this element lives inside the ocean plate —
-  // which is itself a `mask` Reveal, i.e. `clip-path: inset(0 0 100% 0)` until
-  // the tide fills in. A clip-collapsed ancestor reports 0% intersection for
-  // everything inside it, so a nested Reveal here cannot fire until the clip
-  // has opened past this label, and then stacks its own delay on top of that.
-  // Measured: the sub-lines were still hidden 3s after load. That interaction
-  // is the one CLAUDE.md warns about; a timer sidesteps it entirely, and is
-  // the honest mechanism anyway — the hero is above the fold, so there is no
-  // scroll event to wait for and nothing for an observer to tell us.
-  //
-  // Shared motion tokens only (duration-reveal / ease-premium), and the hidden
-  // state is scoped to `[.js_&]` exactly as Reveal's own is, so the line is
-  // visible — not blank — if JavaScript never runs.
-  const [subIn, setSubIn] = useState(false);
+  return (
+    <div
+      style={style}
+      className={cn(
+        'rounded-[12px] border border-[#E3EDF1] bg-white px-4 py-3 text-left shadow-[0_6px_24px_rgba(7,38,54,0.12)]',
+        className
+      )}
+    >
+      <p className="text-[16px] font-semibold leading-[22px] text-[#072636]">{title}</p>
+    </div>
+  );
+}
+
+/**
+ * One alert over the plate: the hotspot's pulse, the leader, and the card.
+ *
+ * The whole group rides the hull as ONE translation — the displacement the
+ * hotspot itself undergoes (see `onShipPose`) — rather than the hull's
+ * rotation. That keeps the leader welded to its marker while the card and its
+ * lines stay square to the page: a card rocking half a degree with the swell
+ * would lose the crisp edge it is there for.
+ *
+ * The entrance is timed from mount, not driven by <Reveal>: this lives inside
+ * the plate's own `mask` Reveal, whose collapsed clip-path reports 0%
+ * intersection for everything in it (CLAUDE.md). The leader draws out of the
+ * hotspot, turns down, and the card arrives at its foot — hotspot, line, card,
+ * the order the eye should take. Hidden states are scoped to `[.js_&]`, so
+ * without JavaScript the whole thing is simply there.
+ */
+function AlertAnnotation({
+  alert,
+  hotspot,
+  groupRef,
+}: {
+  alert: HeroAlert;
+  hotspot: { x: number; y: number };
+  groupRef: (el: HTMLDivElement | null) => void;
+}) {
+  const [shown, setShown] = useState(false);
   useIsomorphicLayoutEffect(() => {
-    if (!sub) return;
     if (
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      setSubIn(true);
+      setShown(true);
       return;
     }
-    const t = window.setTimeout(() => setSubIn(true), subDelay);
+    const t = window.setTimeout(() => setShown(true), alert.delay);
     return () => window.clearTimeout(t);
-  }, [sub, subDelay]);
+  }, [alert.delay]);
+
+  const right = alert.side === 'right';
+  const r = alert.marker.r * HERO_SHIP_SCALE;
+  // The leader leaves from the marker's rim, not its centre.
+  const start = right ? hotspot.x + r : hotspot.x - r;
+  const run = Math.abs(alert.elbowX - start);
+  const drop = alert.cardTop - hotspot.y;
+  const step = 'transition duration-ui ease-standard motion-reduce:transition-none motion-reduce:!delay-0';
 
   return (
-    // Hidden below `md`, floored above it. vw(21.4) is ~5px on a 375px phone
-    // — illegible — but simply flooring the size does not rescue it: the
-    // illustration is only ~150px tall there, and a legible label is wide
-    // enough to run across the hull and past the right edge of the frame. At
-    // `md` and up the frame is wide enough for an 11px label to sit clear of
-    // both, so the labels start there and the phone layout drops them rather
-    // than showing unreadable or overlapping text.
-    <Parallax
-      anchor="top"
-      distance={drift}
-      className="absolute z-20 hidden md:block"
-      style={{ left: pctX(x), top: pctY(y) }}
+    <div
+      ref={groupRef}
+      data-callout-label={alert.name}
+      className="absolute inset-0"
+      style={{ willChange: 'transform' }}
     >
       <span
-        ref={bobRef}
-        data-callout-label={name}
-        className="block whitespace-nowrap font-normal uppercase leading-none text-[#072637]"
+        aria-hidden
+        className="absolute"
         style={{
-          // Poppins (the body face, inherited — no `font-display` here), at
-          // REGULAR (400) with no added tracking, which is the reference's own
-          // voice.
-          //
-          // This was briefly semibold with 0.015em, and that was the mistake:
-          // measured off reference/01-hero.png, its label runs 0.563 em per
-          // character against 0.615 for semibold+tracking — the whole
-          // difference between the two is weight, not size. The reference's
-          // type is ~21.4px and this is 21.75px, so the size was already
-          // right; going bolder is what made it read chunky and cramped.
-          //
-          // Weight was picked by measurement, not by eye, and medium was a
-          // near miss: rendered, Poppins medium uppercase is 0.590 em/char
-          // (270px here), where the reference measures 0.563 (253px at its own
-          // 21.4px, i.e. 257px at ours). Regular is the 5% narrower face that
-          // lands on it — 258px — so 400, not 500, is what the reference is
-          // actually set in.
-          //
-          // The LEFT label's `x` is set against this width (see the call
-          // site): its leader is drawn inside the ship raster with a 14px-thick
-          // arrowhead at plate x 522-528, and the text grows rightward into it.
-          // The right callout has mirrored geometry — its leader runs away
-          // leftward from x 1095 while the text runs right from 1102 — so it
-          // never collides.
-          fontSize: `max(${cqw(29)}, 13px)`,
-          // The ship's own roll pivot, expressed relative to this label's box.
-          // Hero.tsx writes the hull's exact transform here — the same
-          // translate and the same rotate — so the label is carried as part of
-          // the ship's rigid body, which is what its leader line already is.
-          // Rotating about a pivot this far outside the box is the point: it
-          // resolves into the translation the leader's own tip undergoes, and
-          // that is what keeps the join between text and arrow fixed.
-          //
-          // In cqw (plate-relative) rather than vw: the pivot is a distance in
-          // plate reference px, so one reference px is one (100/1560)cqw of the
-          // PLATE. The plate is full-bleed, so this equals vw today — cqw just
-          // keeps it correct against the plate rather than the window.
-          transformOrigin: `${cqw(SHIP_PIVOT_REF.x - x)} ${cqw(SHIP_PIVOT_REF.y - y)}`,
-          transform: `scale(${HERO_SHIP_SCALE})`,
-          willChange: 'transform',
+          left: pctX(hotspot.x - r),
+          top: pctY(hotspot.y - r),
+          width: cqw(2 * r),
+          height: cqw(2 * r),
         }}
       >
-        {/* A feathered white wash behind the type — no border, no shadow, no
-            edge, so it reads as air rather than as a card.
-
-            It earns its place because the reference's callouts sat on clean
-            white and these no longer do. The watermark now runs plate y
-            232-370 while this label sits at 309-325, i.e. directly over the
-            letters, and the sub-line below it lands in a wave lattice that is
-            100% non-white. The type was losing to two layers that were never
-            behind it in the artwork.
-
-            A radial gradient, NOT `filter: blur()`. `onShipPose` rewrites this
-            span's transform every frame, and a blurred child would be
-            re-composited on each of them; a gradient costs nothing per frame.
-
-            The overhang is asymmetric — see `leaderSide`. Washing over a
-            leader would pale it, and the right callout has only ~7px of
-            clearance to its tip. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute"
-          style={{
-            // Feathering is done with `filter: blur`, not by a gradient's own
-            // stops. A radial gradient reaches its transparent stop on an
-            // ELLIPSE while the element is a RECTANGLE, so unless the ellipse
-            // is inscribed well inside the box the corners and edge midpoints
-            // are still opaque where the box ends — which draws exactly the
-            // hard rectangle this is meant to avoid. Blur has no such problem:
-            // it softens every side equally, whatever the shape.
-            //
-            // The cost worry is unfounded here. `onShipPose` rewrites the
-            // PARENT's transform each frame, but a transform-only change
-            // re-composites this layer rather than re-running its filter, so
-            // the blur is rasterised once.
-            //
-            // The insets are asymmetric because the blur is not: it spreads
-            // ~0.3em in every direction, and on the leader side that would
-            // wash the dark arrow pale. So the box is pulled INWARD on
-            // whichever side the leader approaches from (see `leaderSide`) —
-            // the right callout has only ~7px between its text and its tip —
-            // and pushed outward on the other three.
-            top: '-0.28em',
-            bottom: '-0.28em',
-            left: leaderSide === 'left' ? '0.15em' : '-0.55em',
-            right: leaderSide === 'right' ? '0.15em' : '-0.55em',
-            background: 'rgba(255,255,255,0.88)',
-            borderRadius: '0.4em',
-            filter: 'blur(0.3em)',
-          }}
-        />
-        <span className="relative block">{children}</span>
-        {sub ? (
-          // `lg` rather than the label's `md`: the whole callout is scaled by
-          // HERO_SHIP_SCALE, so below that the sub-line gets too small to
-          // read. The label's own floor at `md` is pre-existing.
-          <span className="relative hidden lg:block" style={{ marginTop: cqw(6) }}>
-            <span
-              data-callout-sub={name}
-              className={
-                'block normal-case font-normal text-[#0C3D59] ' +
-                'transition-[clip-path,opacity] duration-reveal ease-premium ' +
-                'motion-reduce:transition-none ' +
-                (subIn
-                  ? '[clip-path:inset(0)] opacity-100'
-                  : '[.js_&]:[clip-path:inset(0_100%_0_0)] [.js_&]:opacity-0')
-              }
-              // The line WIPES IN left to right rather than rising: the alert
-              // is stated, then its answer is written underneath it, the way a
-              // readout prints. It is the one gesture the hero did not already
-              // own — the headline rises out of a mask, the ocean fills from
-              // the waterline, both vertical — so the horizontal sweep reads
-              // as a different kind of event rather than a third copy of the
-              // same one, and it runs along the line of reading.
-              //
-              // Animating clip-path here is safe precisely because this is NOT
-              // inside a Reveal: a clip-collapsed node reports 0% intersection
-              // forever, which is why Reveal keeps its own clip on an inner
-              // wrapper and why the entrance here is driven by the mount timer
-              // above instead of an observer.
-              //
-              // 0.727em against the label, which is +3px on screen (12.75 ->
-              // 15.81) to match the label's own +3. Expressed as an em so the
-              // pair stays locked whatever the label does. #0C3D59 rather than
-              // the old #54778A: the previous pairing was too small and too
-              // pale to hold against the wave lattice behind it. Still well
-              // inside the width budget — the longer sub-line ends ~1321
-              // against a 1560 frame.
-              style={{ fontSize: '0.727em' }}
-            >
-              {sub}
-            </span>
-          </span>
-        ) : null}
+        <span className="hotspot-pulse-anim block h-full w-full rounded-full border-[1.5px] border-white" />
       </span>
-    </Parallax>
+
+      {/* The run, out of the hotspot, overshooting the elbow by half a stroke
+          so the corner is square. */}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute bg-[#072637]',
+          step,
+          right ? 'origin-left' : 'origin-right',
+          shown ? 'scale-x-100' : '[.js_&]:scale-x-0'
+        )}
+        style={{
+          left: right ? pctX(start) : `calc(${pctX(alert.elbowX)} - ${LEADER_HALF})`,
+          top: pctY(hotspot.y),
+          marginTop: `-${LEADER_HALF}`,
+          width: `calc(${cqw(run)} + ${LEADER_HALF})`,
+          height: LEADER_W,
+        }}
+      />
+      {/* The drop, from the elbow to the card's top edge. */}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute origin-top bg-[#072637]',
+          step,
+          shown ? 'scale-y-100' : '[.js_&]:scale-y-0'
+        )}
+        style={{
+          left: pctX(alert.elbowX),
+          marginLeft: `-${LEADER_HALF}`,
+          top: pctY(hotspot.y),
+          marginTop: `-${LEADER_HALF}`,
+          width: LEADER_W,
+          height: `calc(${cqw(drop)} + ${LEADER_HALF})`,
+          // Starts as the run lands: one `ui` beat after it.
+          transitionDelay: 'var(--motion-duration-ui)',
+        }}
+      />
+
+      <AlertCard
+        title={alert.title}
+        className={cn(
+          'absolute whitespace-nowrap transition-opacity duration-reveal ease-premium motion-reduce:transition-none motion-reduce:!delay-0',
+          shown ? 'opacity-100' : '[.js_&]:opacity-0'
+        )}
+        style={{
+          top: pctY(alert.cardTop),
+          // Arrives over the last stretch of the drop (1.6 `ui` beats).
+          transitionDelay: 'calc(var(--motion-duration-ui) * 1.6)',
+          ...(right
+            ? { left: pctX(alert.elbowX), marginLeft: -CARD_JOINT }
+            : { right: pctX(REF_W - alert.elbowX), marginRight: -CARD_JOINT }),
+        }}
+      />
+    </div>
   );
 }
 
 export function Hero() {
-  // Both callout labels ride the hull as part of its rigid body — the same
-  // translate AND the same rotate the ship layer itself gets, about the same
-  // pivot (each label carries that pivot as its own transform-origin; see
-  // `Callout`). Their leader lines are drawn inside the ship raster, so this
-  // is the only way the text and the arrow it belongs to stay welded.
+  // Each alert group follows its hotspot, which is painted inside the ship
+  // raster and so moves with the hull's full transform: translate by `dy`,
+  // rotate by `roll` about the waterline pivot. Its displacement is that
+  // rotation applied to the hotspot's offset from the pivot, plus the bob. The
+  // two hotspots sit either side of the pivot, so a roll moves them in
+  // OPPOSITE vertical directions and each group needs its own.
   //
-  // The rotation is not a refinement — it is most of the effect. The two
-  // leader tips sit on opposite sides of the pivot (plate x 439 and 1203
-  // against a pivot at 771), so a roll moves them in OPPOSITE vertical
-  // directions: at half a degree, the left tip drops ~2.9px while the right
-  // rises ~3.8px. Driving both labels with one shared `dy` — which is what
-  // this did at first — is therefore wrong for at least one of them at every
-  // instant the hull is not level.
-  //
-  // Applied to the span directly rather than through state, for the same
-  // reason hero-sea.tsx writes the ship's own transform straight to its node:
-  // this arrives up to 30 times a second, and re-rendering the page to move
-  // two labels would cost far more than the movement itself.
-  const anchorLabelRef = useRef<HTMLSpanElement>(null);
-  const fuelLabelRef = useRef<HTMLSpanElement>(null);
+  // Written straight to the nodes rather than through state, for the same
+  // reason hero-sea.tsx writes the ship's own transform: this arrives up to 30
+  // times a second.
+  const alertRefs = useRef<(HTMLDivElement | null)[]>([]);
   const onShipPose = useCallback(({ dy, roll }: ShipPose) => {
-    // cqw (plate-relative), not vw: the labels live in the plate and their bob
-    // must be a fraction of the PLATE's width to stay welded to the hull's own,
-    // which the canvas draws at the plate's scale. The plate is full-bleed, so
-    // this equals vw today — but cqw is the unit that stays correct if the
-    // plate is ever sized to anything other than the whole viewport width.
-    const t =
-      `translate3d(0, ${cqw(dy)}, 0) ` +
-      `rotate(${roll.toFixed(4)}deg) scale(${HERO_SHIP_SCALE})`;
-    if (anchorLabelRef.current) anchorLabelRef.current.style.transform = t;
-    if (fuelLabelRef.current) fuelLabelRef.current.style.transform = t;
+    const a = (roll * Math.PI) / 180;
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    HOTSPOTS.forEach((h, i) => {
+      const el = alertRefs.current[i];
+      if (!el) return;
+      const vx = h.x - SHIP_PIVOT_REF.x;
+      const vy = h.y - SHIP_PIVOT_REF.y;
+      const dx = vx * cos - vy * sin - vx;
+      const ddy = vx * sin + vy * cos - vy + dy;
+      // cqw (plate-relative): the hull's bob is a fraction of the PLATE.
+      el.style.transform = `translate3d(${cqw(dx)}, ${cqw(ddy)}, 0)`;
+    });
   }, []);
 
   return (
@@ -456,7 +431,7 @@ export function Hero() {
             style={{
               // min(normal clamp, height cap): the cap only shrinks the type on
               // short/wide viewports so the full-bleed ocean below still fits.
-              fontSize: `min(clamp(2.75rem, ${vw(HEADING_REF_SIZE)}, ${HEADING_MAX_SIZE}), ${HEADING_H_CAP})`,
+              fontSize: `calc(${LONG_HEADLINE_TRIM} * min(clamp(2.75rem, ${vw(HEADING_REF_SIZE)}, ${HEADING_MAX_SIZE}), ${HEADING_H_CAP}, ${LONG_HEADLINE_WIDTH_CAP}))`,
               // Unitless, not vw(86). `fontSize` is clamped at both ends but a
               // vw line-height is not, so below the ~794px where the 2.25rem
               // floor engages the leading kept shrinking past the text: 20.7px
@@ -468,10 +443,12 @@ export function Hero() {
               letterSpacing: '-0.053em',
             }}
           >
-            Building <span className="text-[#FA8837]">AI Agents</span>
-            <br />
-            For Shipping and Beyond
-            <span className="text-[#FA8837]">.</span>
+            Turning <span className="text-[#FA8837]">Digital Ambition</span> into{' '}
+            <span className="text-[#FA8837]">Measurable</span>
+            {/* Two balanced 40-character lines from md up; phones wrap freely. */}
+            <br className="hidden md:block" />{' '}
+            <span className="text-[#FA8837]">Business Value</span> through Technology
+            and AI<span className="text-[#FA8837]">.</span>
           </h1>
         </Reveal>
         <Reveal delay={100}>
@@ -640,44 +617,6 @@ export function Hero() {
               </div>
             </Parallax>
 
-            {/* The two sub-lines land 100ms apart, left first, so the pair
-                reads as a sequence rather than both popping symmetrically —
-                the same "a sequence, not a flat group" the rest of the hero
-                is built on. */}
-            {/* x 114 -> 30. At the label's new size its text is ~299px wide,
-                and from the old x it ran to plate 578 — straight over the
-                arrowhead at 522-528, which showed as a pale wedge stabbing
-                through the last two letters of "DROPS". From 30 the text
-                starts at 215 and ends at 514, clearing the head by 8px with
-                the line still running on to the hull. `transformOrigin` is
-                derived from `x`, so the weld to that leader follows the move
-                automatically; scripts/check-callout-track.js keys off the
-                declared position and has been updated to match. */}
-            <Callout
-              x={30}
-              y={310}
-              drift={-26}
-              bobRef={anchorLabelRef}
-              name="anchor (left)"
-              leaderSide="right"
-              sub="Turn insight into action"
-              subDelay={900}
-            >
-              Hull Performance Drops
-            </Callout>
-            <Callout
-              x={1213}
-              y={217}
-              drift={-38}
-              bobRef={fuelLabelRef}
-              name="fuel (right)"
-              leaderSide="left"
-              sub="Investigate. Validate. Drive Action"
-              subDelay={1000}
-            >
-              Fuel Anomaly Detected
-            </Callout>
-
             {/* White background of the plate is dropped by multiply, letting the
                 wordmark and labels above show through while the ship occludes them
                 exactly as it does in the reference. */}
@@ -713,7 +652,33 @@ export function Hero() {
                 under reduced motion, pauses off-screen and on hidden tabs), so it
                 needs no PauseOffscreen wrapper. */}
             <HeroSea onPose={onShipPose} />
+
+            {/* The alerts, over the ship and the water. From `lg` only: below
+                that the plate is too small for a 16px card to sit beside the
+                hull, so the same cards stack under the plate instead (below),
+                without leaders. PauseOffscreen holds the hotspot pulse while
+                the hero is scrolled away. */}
+            <PauseOffscreen className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
+              {ALERTS.map((alert, i) => (
+                <AlertAnnotation
+                  key={alert.name}
+                  alert={alert}
+                  hotspot={HOTSPOTS[i]}
+                  groupRef={(el) => {
+                    alertRefs.current[i] = el;
+                  }}
+                />
+              ))}
+            </PauseOffscreen>
           </div>
+        </div>
+      </Reveal>
+
+      <Reveal delay={200} className="lg:hidden">
+        <div className="mx-auto grid max-w-[760px] gap-3 px-5 pb-10 pt-4 sm:grid-cols-2 sm:px-8">
+          {ALERTS.map((alert) => (
+            <AlertCard key={alert.name} title={alert.title} />
+          ))}
         </div>
       </Reveal>
     </section>

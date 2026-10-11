@@ -11,9 +11,11 @@ and moving ship from it; the water layers come from the canonical waves.svg.
                        Applied to the base <img>, it leaves only the clean sky
                        and horizon behind the independently scaled ship.
 
-  hero-ship.png        the ship and both leaders, as an RGBA cutout with the
-                       white page unmultiplied out of it.  Drawn over the water
-                       with normal blending and bobbed by <HeroWaves>'s pose.
+  hero-ship.png        the ship alone, as an RGBA cutout with the white page
+                       unmultiplied out of it.  Drawn over the water with normal
+                       blending and bobbed by <HeroWaves>'s pose.  The source's
+                       two callout leaders are erased from it (see LEADERS);
+                       hero.tsx draws the alert cards and their leaders itself.
 
   (the water)          mostly not written here — the canvas redraws waves.svg's
                        own geometry across the whole band, with nothing masked
@@ -64,16 +66,20 @@ STATIC_SHIP_CLEANUP_BOX = (384, 0, 1250, BAND_TOP)
 # inside it, not assumed to fill it.
 SHIP_BOX = (505, 262, 1080, 600)  # x0, y0, x1, y1 in plate px
 
-# The two callout leaders.  They are annotation, not ocean, and they are drawn
-# onto the hull at their inner ends — so they ride with the ship rather than
-# staying pinned to the plate while it moves.  (Their far ends are arrowheads
-# pointing at <Callout> text that already drifts on scroll, so a few px of
-# travel there is invisible.)
-LEADER_BOXES = (
-    (432, 309, 592, 330),         # left: crosses open water into the bow
-    (1080, 215, 1240, 235),       # right: over sky, into the hull
+# The source's two callout leaders, as (x0, y0, x1, y1, half-width) segments in
+# plate px, measured off hero-ocean.png.  They are ERASED, not cut out: the hero
+# now draws its alerts as cards with their own leaders (hero.tsx), and the two
+# source leaders had mismatched ends (an arrowhead on the left, a diamond on the
+# right).  Each runs horizontally over water or sky and then diagonally across
+# the hull to its marker, so the diagonals cross painted hull; those pixels are
+# repainted from their surroundings by `erase_leaders` before anything below
+# measures the image.  The markers themselves stay (CALLOUT_MARKERS).
+LEADERS = (
+    (434, 319.5, 557, 319.5, 8),  # left: arrowhead + run over open water
+    (555, 321, 613, 361, 4),      # left: diagonal down the bow to its marker
+    (996, 265, 1055, 227.5, 4),   # right: diagonal up off its marker
+    (1052, 227.5, 1206, 227.5, 7),  # right: run over sky + diamond
 )
-LEADER_MAX_L = 140
 
 # The two callout markers, in plate px: centre x, centre y, radius.
 #
@@ -144,9 +150,47 @@ def grow(mask, k):
                     .filter(ImageFilter.MaxFilter(k))) > 127
 
 
+def erase_leaders(A):
+    """Paint the source's callout leaders out of the plate, in place.
+
+    Inside each LEADERS corridor, a pixel is leader if it is the leaders' dark
+    navy (low red, low green, blue at least red) — which neither the red hull,
+    its cyan trim, the white railings nor the sky is — grown 2px to take the
+    antialiased fringe with it.  Those pixels are then filled by diffusion from
+    the unmasked pixels around them: a few px wide everywhere, so the fill
+    reads as the hull, sky or water it sits in.
+    """
+    H, W, _ = A.shape
+    R, G, B = A[..., 0], A[..., 1], A[..., 2]
+    navy = (R < 80) & (G < 110) & (B >= R)
+    yy, xx = np.mgrid[:H, :W].astype(float)
+    corridor = np.zeros((H, W), bool)
+    for x0, y0, x1, y1, hw in LEADERS:
+        dx, dy = x1 - x0, y1 - y0
+        t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / (dx * dx + dy * dy), 0, 1)
+        d = np.hypot(xx - (x0 + t * dx), yy - (y0 + t * dy))
+        corridor |= d <= hw
+    mask = grow(navy & corridor, 5) & corridor
+    known = ~mask
+    out = A.copy()
+    out[mask] = 0
+    k = known.astype(float)
+    for _ in range(400):
+        acc = np.zeros_like(out)
+        cnt = np.zeros((H, W))
+        for sy, sx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            acc += np.roll(out * k[..., None], (sy, sx), (0, 1))
+            cnt += np.roll(k, (sy, sx), (0, 1))
+        fill = mask & (cnt > 0)
+        out[fill] = acc[fill] / cnt[fill][:, None]
+        k = np.where(fill, 1.0, k)
+    return out
+
+
 def main():
     im = Image.open(SRC).convert("RGB")
-    A = np.array(im).astype(float)
+    A = erase_leaders(np.array(im).astype(float))
+    im = Image.fromarray(np.round(A).astype(np.uint8))
     H, W, _ = A.shape
     R, B = A[..., 0], A[..., 2]
     L = np.array(im.convert("L")).astype(float)
@@ -212,16 +256,6 @@ def main():
         hull[y] = acc / SUB_Y
     bot = rows[-1]
 
-    # ---- the leaders -----------------------------------------------------
-    ink = np.zeros((H, W), float)
-    for lx0, ly0, lx1, ly1 in LEADER_BOXES:
-        sub = L[ly0:ly1, lx0:lx1]
-        ink[ly0:ly1, lx0:lx1] = np.maximum(
-            ink[ly0:ly1, lx0:lx1], (sub < LEADER_MAX_L).astype(float))
-    # 1px grow, so each line keeps its own antialiasing
-    ink = np.array(Image.fromarray((ink * 255).astype(np.uint8)).filter(
-        ImageFilter.MaxFilter(3))).astype(float) / 255.0
-
     # ---- the ship's matte above the waterline ----------------------------
     # Up there the background is the white page, so the true matte is simply how
     # far a pixel is from white: alpha = 1 - min(RGB)/255.  Restricted to the
@@ -238,7 +272,6 @@ def main():
     ship = np.zeros((H, W), float)
     ship[:BAND_TOP] = sky[:BAND_TOP]
     ship[BAND_TOP:] = hull[BAND_TOP:]
-    ship = np.maximum(ship, ink)              # the leaders, either side of the line
     # Antialias the hull's cut, and only the hull's: the sky matte is already
     # continuous and blurring it would soften the rigging.
     cut = np.zeros((H, W), float)

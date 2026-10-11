@@ -74,17 +74,16 @@ export function WhoWeAre() {
       </div>
 
       <div className="relative z-10 px-5 sm:px-8 lg:px-12">
-        {/* Continues the hero's cinematic register as the reader crosses the
-            white→white seam: label fades, headline wipes, body drifts up on
-            the cinematic tier — so the two white sections read as one scene
-            rather than two stacked blocks. */}
+        {/* The shared texts-reveal grammar (TRANSITIONS.md §6): label fades,
+            headline rises out of its mask, body rises under it, each through
+            the same cross-blur and one 80ms beat apart. */}
         <div className="text-center">
           <Reveal variant="fade">
             <p className="text-[13px] font-medium uppercase tracking-[0.14em] text-[#249495] md:text-[17.5px]">
               Who We Are
             </p>
           </Reveal>
-          <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+          <Reveal variant="rise-mask" delay={80}>
             <h2 className="mt-4 text-[2.25rem] font-medium leading-[1.2] tracking-[-0.01em] text-[#072637] md:mt-[16px] md:text-[53.3px] md:leading-[69px]">
               A company built at the edge of
               <br />
@@ -94,7 +93,7 @@ export function WhoWeAre() {
           </Reveal>
         </div>
 
-        <Reveal delay={120} duration="cinematic">
+        <Reveal delay={160}>
           <p className="relative mx-auto mt-[8.5rem] max-w-none text-center text-[1.75rem] font-medium leading-[1.55] text-[#0C3D59] md:mt-[303px] md:text-[41.4px] md:leading-[66px]">
             We&apos;re building AI agents for shipping which are designed
             <br className="hidden md:block" />

@@ -1,7 +1,7 @@
 'use client';
 
-import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LearnArrow } from '@/components/site/learn-arrow';
 
 export type Tone = 'teal' | 'copper';
 
@@ -88,11 +88,11 @@ export function Box({
       aria-controls={revealId}
       onClick={onToggle}
       className={cn(
-        'group relative isolate block w-full overflow-hidden rounded-[3px] text-left',
+        't-learn group relative isolate block w-full overflow-hidden rounded-[3px] text-left',
         // Fixed height from `md` up, where both faces stack on top of each
         // other: the taller one (the products reveal) has to fit without the
         // card resizing as the cursor crosses it.
-        'md:min-h-[440px]',
+        'md:min-h-[484px]',
         'transition duration-ui ease-premium',
         'hover:-translate-y-1 hover:shadow-panel',
         'focus-visible:-translate-y-1 focus-visible:shadow-panel focus-visible:outline-none',
@@ -115,10 +115,13 @@ export function Box({
           'group-data-[on=true]:hidden',
           'md:absolute md:inset-0 md:px-12 md:py-10',
           'md:group-data-[on=true]:flex',
+          // Leaves through the same 2px cross-blur the revealed face arrives
+          // through, so the swap reads as one motion (transitions.dev panel
+          // reveal / skeleton reveal).
           'md:transition md:duration-ui md:ease-premium',
-          'md:group-hover:-translate-y-3 md:group-hover:opacity-0',
-          'md:group-focus-visible:-translate-y-3 md:group-focus-visible:opacity-0',
-          'md:group-data-[on=true]:-translate-y-3 md:group-data-[on=true]:opacity-0',
+          'md:group-hover:-translate-y-3 md:group-hover:opacity-0 md:group-hover:[filter:blur(var(--blur-small))]',
+          'md:group-focus-visible:-translate-y-3 md:group-focus-visible:opacity-0 md:group-focus-visible:[filter:blur(var(--blur-small))]',
+          'md:group-data-[on=true]:-translate-y-3 md:group-data-[on=true]:opacity-0 md:group-data-[on=true]:[filter:blur(var(--blur-small))]',
           'motion-reduce:transition-none'
         )}
       >
@@ -128,7 +131,14 @@ export function Box({
 
         <span aria-hidden className="mt-6 block h-px w-12 bg-white/75 md:mt-7" />
 
-        <span className="mt-6 block max-w-[38ch] text-[clamp(0.86rem,1.02vw,15.5px)] leading-[1.75] text-white/80 md:mt-7">
+        {/* From `xl` the cards sit side by side, and each stack is centred on
+            its own — so a longer summary would lift one card's title, rule and
+            Explore above its neighbour's. Reserving three lines (3 × 1.75em
+            leading) gives both stacks the same height, so they centre to the
+            same lines. In `em`, it tracks the clamp()ed size and never sets it.
+            The 46ch measure is what holds the longer (consulting) summary to
+            those three lines; at 38ch it wrapped to four. */}
+        <span className="mt-6 block max-w-[46ch] text-[clamp(0.86rem,1.02vw,15.5px)] leading-[1.75] text-white/80 md:mt-7 xl:min-h-[5.25em]">
           {body}
         </span>
 
@@ -137,10 +147,8 @@ export function Box({
             reveal rather than lead into it. */}
         <span className="mt-7 inline-flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.14em] text-white/90 md:text-[13px]">
           Explore
-          <ArrowRight
-            className="h-4 w-4 transition-transform duration-micro ease-standard group-hover:translate-x-1.5 motion-reduce:transition-none"
-            strokeWidth={2.2}
-          />
+          {/* transitions.dev learn-more hover, driven by the card's `t-learn`. */}
+          <LearnArrow className="h-4 w-4" strokeWidth={2.2} />
         </span>
       </span>
 
@@ -150,8 +158,9 @@ export function Box({
         className={cn(
           'hidden group-data-[on=true]:block',
           'md:absolute md:inset-0 md:block',
-          'md:opacity-0 md:transition-opacity md:duration-ui md:ease-premium',
+          'md:opacity-0 md:[filter:blur(var(--blur-small))] md:transition-[opacity,filter] md:duration-ui md:ease-premium',
           'md:group-hover:opacity-100 md:group-focus-visible:opacity-100 md:group-data-[on=true]:opacity-100',
+          'md:group-hover:[filter:none] md:group-focus-visible:[filter:none] md:group-data-[on=true]:[filter:none]',
           'motion-reduce:transition-none'
         )}
       >

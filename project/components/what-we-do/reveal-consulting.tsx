@@ -3,8 +3,8 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * The teal card's revealed face: the video plate, with the site's own text
- * laid over it.
+ * The teal card's revealed face: the video plate with the site's own headline
+ * laid over it, and the services listed underneath.
  *
  * This is footage, not a reconstruction, and that is deliberate — the water
  * and vessel motion are photoreal AI-generated frames (per-pixel realism no
@@ -21,39 +21,40 @@ import { useEffect, useRef } from 'react';
  * copy of that source into public/ without re-running the script brings the
  * duplicate straight back.
  *
- * What the clip still carries is deliberate: the "Systems"/"Data"/"Workflows"
- * pills are its subject matter, the ICON logo is the company's own, and the
+ * What the clip still carries is deliberate: the "Systems"/"People"/"Data"/
+ * "Workflows" pills are its subject matter, the ICON logo is the company's own, and the
  * MINIMAX/Hailuo AI watermark never reaches the screen at all — the crop below
- * is what keeps it off. The headline here is now the card's only one: real DOM
+ * (see FRAMING) is what keeps it off. The headline here is now the card's only one: real DOM
  * text in the site's own font, sized for THIS card (fixed breakpoint sizes,
  * not a viewport-relative clamp — see TEXT below), with the wording and the
  * white-with-one-orange-phrase colouring measured off the source frame before
  * it was repainted.
  *
- * TWO-STAGE CROP. A single `object-fit: cover` on the raw 2944x1248 frame
- * cannot be made safe: this card's own aspect ratio varies with viewport
- * (1.13 at a phone's stacked width up to 2.76 in the single-column band just
- * under the `xl` breakpoint, measured directly against the running page —
- * see box.tsx's `xl:grid-cols-2`), and cover's height-match/width-match split
- * flips partway through that range. Below aspect 2.359 (the video's own
- * ratio) cover matches height and the card shows the FULL frame, watermark
- * included. Above 2.359 — which the measured 2.76 comfortably is — cover
- * matches width instead and crops top and bottom, and because the vessel's
- * hull and wake sit low in the source (measured y 0.34-0.87 of frame height,
- * frame-by-frame across the clip, against a true centre of 0.5) a centred
- * crop loses the ship's stern before it loses anything from the sky.
+ * FRAMING. Zoomed out so the whole vessel and all four pills are always in
+ * shot, measured frame-by-frame across the clip in source pixels: the ship
+ * and pills span x 1240-2400 (the ICON logo reaches 2590) and y 60-1092, the
+ * stern dipping lowest at ~1090; the watermark begins at y 1120. Two stages:
  *
- * The fix is a fixed intermediate crop the card's own aspect never reaches:
- * an inner window at 2944x1050 (=2.804:1, comfortably past the measured
- * 2.76 ceiling) that is ALWAYS shown by height-match, with the video inside
- * it top-anchored (`object-position: center top`) so only its excess below
- * y=1050/1248=0.841 is ever cropped — the same 39px worst-case bite into the
- * wake's fading tail regardless of card width, never into the hull (which
- * stays clear to y=0.873 worst-case, 60px above the window's own floor), and
- * the watermark (y 0.889-0.941) is 80px past that floor and can never appear.
- * `xxx% top` rather than `xxx% center` is what makes this asymmetric: cover's
- * usual centred crop would have taken as much off the top (open water, fine)
- * as the bottom (the ship, not fine).
+ *   1. a window onto the frame at 2944x1100 (2.676:1), always height-matched
+ *      to the plate, so the frame is never shown below y=1100 — the stern
+ *      clears that floor by ~10px and the watermark sits 20px past it;
+ *   2. the video inside it, `object-fit: cover` and top-anchored, so the only
+ *      thing ever cut is that bottom 148px.
+ *
+ * The window's horizontal bias is chosen per layout so that x 1240-2590 stays
+ * inside the plate at every card width:
+ *
+ *   - below `md` the plate is 16:11 and shows 54% of the frame's width; the
+ *     bias puts x 0.654 at centre, i.e. x 1126-2724 visible. The headline
+ *     would land on the hull at this scale, so it follows the plate instead.
+ *   - from `md` the plate is a 344px band (window 921px wide). At the
+ *     narrowest two-column card (596px, at 1280) that shows x 755-2661 with
+ *     the bias at 0.58, and wider cards only show more; open water to the
+ *     left of the bow holds the overlaid headline clear of the hull. Cards
+ *     wider than 921px (single-column, `md` to `xl`) see the whole window,
+ *     its edges feathered into the navy ground by WINDOW_MASK.
+ *
+ * The service list sits under the band, never over it, so it covers nothing.
  *
  * STARTUP LATENCY. `preload="none"` plus decoding a 2944x1248 H.264 frame
  * measured 2-3s from the first `play()` call to the first visible frame —
@@ -73,6 +74,14 @@ import { useEffect, useRef } from 'react';
  * apply to it unchanged), so the ship is on screen from the very first paint
  * and what follows is motion starting, not content arriving.
  *
+ * Even so, loading only on hover left the poster standing still for ~3.7s
+ * after the cursor arrived (measured in Chrome: metadata at 0.8s, first
+ * decoded frame at 3.7s), long enough that the card read as "the video
+ * doesn't play". So on hover-capable devices the front player is now armed
+ * with `preload="auto"` as soon as the card comes within 600px of the
+ * viewport, and by the time a cursor reaches it the first frame is decoded.
+ * Touch devices still load on tap only.
+ *
  * RATE. Played at 0.8x (`RATE` below) rather than native speed — set on
  * both players at every arm/play point since some engines reset
  * `playbackRate` across a `src` change. `currentTime`/`duration` are in the
@@ -89,11 +98,7 @@ import { useEffect, useRef } from 'react';
  * TEXT. Sized in fixed steps at the site's own breakpoints, not a `vw`
  * clamp: a `vw` value tracks the VIEWPORT, but this card's own width does not
  * track the viewport linearly (it swings from a full-width mobile stack to a
- * fixed ~636px in the two-column desktop grid — see box.tsx). At the previous
- * clamp's 1.05rem floor, the smallest phones rendered the headline at a size
- * that used up 46% of the card's own height, measured directly against the
- * running page, leaving barely a sliver of ship visible around it. The steps
- * below are chosen against each breakpoint's actual card height instead.
+ * fixed ~636px in the two-column desktop grid — see box.tsx).
  */
 const SRC = '/what-we-do-consulting.mp4';
 const POSTER = '/what-we-do-consulting-poster.jpg';
@@ -103,6 +108,57 @@ const ARM_BACK_AT = 1.2; // seconds into playback before the back player loads
 // only stretches how long real time takes to reach the same FADE/
 // ARM_BACK_AT thresholds — the crossfade logic below needs no change.
 const RATE = 0.8;
+
+// In reading order: from `md` the first three fill the left column, the last
+// three the right (see ServiceList's `grid-flow-col`).
+const SERVICES = [
+  'Digital Strategy & Roadmaps',
+  'AI Strategy & Adoption',
+  'Business Cases & Value Realization',
+  'Future of Work & Operating Models',
+  'Technology Advisory & Selection',
+  'Custom AI Solutions Development',
+];
+
+const SHADOW = '0 1px 8px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.9)';
+
+// Feathers the window's own left/right edges into the navy ground. Only seen
+// where the card is wider than the window (single-column cards between `md`
+// and `xl`); everywhere else those edges fall outside the plate.
+const WINDOW_MASK =
+  'linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%)';
+
+/**
+ * The services, as plain rows split by hairlines — no bullets. Spans with list
+ * roles rather than <ul>/<li>, because the whole card is a <button>, which only
+ * admits phrasing content.
+ *
+ * One column of six below `md`. From `md`, two across, reading down each
+ * column (`grid-flow-col` over three rows), with each row's height shared
+ * across both columns so the hairlines line up even when a label wraps. The
+ * hairline is a top border on every row but the first of each column.
+ */
+function ServiceList({ className }: { className?: string }) {
+  return (
+    <span
+      role="list"
+      className={[
+        'grid md:grid-flow-col md:grid-cols-2 md:grid-rows-3 md:gap-x-8',
+        className,
+      ].join(' ')}
+    >
+      {SERVICES.map((item) => (
+        <span
+          key={item}
+          role="listitem"
+          className="block border-t border-white/15 py-3 text-[14px] leading-[1.4] text-white first:border-t-0 md:py-2 md:[&:nth-child(4)]:border-t-0"
+        >
+          {item}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export function RevealConsulting() {
   const aRef = useRef<HTMLVideoElement>(null);
@@ -140,6 +196,9 @@ export function RevealConsulting() {
     const armBack = () => {
       if (backArmed) return;
       backArmed = true;
+      // `auto`, or the browser may stop at metadata and the back player never
+      // reaches the readyState the crossfade below waits for.
+      back.preload = 'auto';
       back.src = SRC;
       back.defaultPlaybackRate = RATE;
       back.playbackRate = RATE;
@@ -201,6 +260,26 @@ export function RevealConsulting() {
 
     const sync = () => (group.dataset.on === 'true' ? play() : stop());
 
+    // Warm the front player before the first hover — see STARTUP LATENCY.
+    // Only where hover exists: a touch visitor opens the card with a tap they
+    // may never make, and should not download the clip for nothing.
+    const canHover =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    let io: IntersectionObserver | null = null;
+    if (!reduce && canHover && typeof IntersectionObserver === 'function') {
+      io = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          front.preload = 'auto';
+          armFront();
+          io?.disconnect();
+        },
+        { rootMargin: '600px 0px' }
+      );
+      io.observe(group);
+    }
+
     group.addEventListener('mouseenter', play);
     group.addEventListener('mouseleave', stop);
     group.addEventListener('focusin', play);
@@ -208,9 +287,15 @@ export function RevealConsulting() {
     const mo = new MutationObserver(sync);
     mo.observe(group, { attributes: true, attributeFilter: ['data-on'] });
     sync();
+    // A cursor already resting on the card when this effect runs (it arrived
+    // before hydration) never fires `mouseenter`, while the CSS `:hover`
+    // reveal is already showing — so the face would sit on a still poster
+    // until the visitor left and came back.
+    if (group.matches(':hover')) play();
 
     return () => {
       cancelAnimationFrame(raf);
+      io?.disconnect();
       group.removeEventListener('mouseenter', play);
       group.removeEventListener('mouseleave', stop);
       group.removeEventListener('focusin', play);
@@ -219,90 +304,105 @@ export function RevealConsulting() {
     };
   }, []);
 
+  // `t-stagger-hover`: the copy over and under the plate enters as a
+  // transitions.dev texts reveal (headline, subline, then the list, 40ms
+  // apart), matching the products face — see reveal-products.tsx. The video
+  // itself is not staggered; it is the face's ground.
   return (
-    <span className="relative block h-full w-full overflow-hidden">
+    <span className="t-stagger-hover relative block h-full w-full overflow-hidden">
       {/* Behind the video only so a poster miss (blocked, offline) does not
           flash the card's teal ground. */}
       <span aria-hidden className="absolute inset-0 bg-[#06192A]" />
 
-      {/* Below `md` the revealed face is a normal block with no height of its
-          own, so it needs an intrinsic ratio; from `md` it fills the card. */}
-      <span className="relative block aspect-[16/11] w-full overflow-hidden md:aspect-auto md:h-full">
-        {/* Stage 1: the safe window, 2944x1050 — see the docblock. Height
-            always matches this card (2.804 exceeds every measured card
-            aspect), width overflows and is centred with a rightward bias
-            (66%) so the ship sits inside frame with room to its left for the
-            text below, then clipped by this span's own `overflow-hidden`. */}
-        <span
-          aria-hidden
-          className="absolute h-full overflow-hidden"
-          style={{
-            aspectRatio: '2944 / 1050',
-            left: '66%',
-            transform: 'translateX(-66%)',
-          }}
-        >
-          {/* Stage 2: the actual crop. `top` anchoring means only the
-              excess below y=1050/1248 is ever cut — never the sky above the
-              vessel. */}
-          {[aRef, bRef].map((r, i) => (
-            <video
-              key={i}
-              ref={r}
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{ objectPosition: 'center top', opacity: i === 0 ? 1 : 0 }}
-              muted
-              playsInline
-              preload="none"
-              poster={POSTER}
-              aria-hidden
-            />
-          ))}
+      {/* The plate and its headline. A wrapper of their own so that from `md`
+          the headline can sit over the plate (absolute to this span, whose
+          height is then the plate's), while below `md` it simply follows it. */}
+      <span className="relative block">
+        {/* The plate: a fixed 16:11 below `md`, where the face is a normal
+            block that needs an intrinsic ratio; a 344px band across the top of
+            the card from `md`, leaving the rest of the card for the list. */}
+        <span className="relative block aspect-[16/11] w-full overflow-hidden md:aspect-auto md:h-[344px]">
+          {/* Stage 1: the window, 2944x1100 — see FRAMING in the docblock.
+              Height-matched to the plate; the bias puts source x 0.654 (below
+              `md`) or 0.58 (from `md`) at the plate's centre. The masked
+              edges only ever show where a wide card outruns the window. */}
+          <span
+            aria-hidden
+            className="absolute left-1/2 h-full -translate-x-[65.4%] overflow-hidden md:-translate-x-[58%]"
+            style={{
+              aspectRatio: '2944 / 1100',
+              maskImage: WINDOW_MASK,
+              WebkitMaskImage: WINDOW_MASK,
+            }}
+          >
+            {/* Stage 2: the actual crop. `top` anchoring means only the
+                excess below y=1100/1248 is ever cut — the watermark, never
+                the sky above the vessel. */}
+            {[aRef, bRef].map((r, i) => (
+              <video
+                key={i}
+                ref={r}
+                className="absolute inset-0 h-full w-full object-cover"
+                style={{ objectPosition: 'center top', opacity: i === 0 ? 1 : 0 }}
+                muted
+                playsInline
+                preload="none"
+                poster={POSTER}
+                aria-hidden
+              />
+            ))}
+          </span>
+
+          {/* From `md` the headline sits over the plate's lower-left, on open
+              water. A bottom-left radial vignette darkens only that corner
+              rather than a panel across the card: a full-height, 60%-wide
+              flat-black rectangle (the first cut at this) read as "the video
+              is broken" rather than "there is a caption here". Kept short of
+              the hull. There is deliberately no fade along the plate's bottom
+              edge: the stern runs to within ~10px (source) of the window's
+              floor, so any fade there dims the ship. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 hidden md:block"
+            style={{
+              backgroundImage:
+                'radial-gradient(ellipse 52% 62% at 0% 100%, rgba(2,14,24,0.88) 0%, rgba(2,14,24,0.72) 45%, rgba(2,14,24,0.3) 72%, rgba(2,14,24,0) 100%)',
+            }}
+          />
+        </span>
+
+        {/* The site's own text, in place of the one painted out of the clip —
+            see the docblock. Colour and wording are the source frame's own
+            ("Our AI Solutions..." / orange on "AI Solutions" only).
+            `text-shadow` carries legibility where the vignette has faded. */}
+        <span className="relative block px-3.5 pt-3 sm:px-5 md:pointer-events-none md:absolute md:inset-x-0 md:bottom-0 md:px-7 md:pb-3 md:pt-0">
+          <span
+            className="t-stagger-line text-[15px] font-medium leading-[1.24] tracking-[-0.005em] text-white md:text-[18px] lg:text-[21px]"
+            style={
+              {
+                textShadow: '0 1px 10px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.9)',
+                '--t-line': 0,
+              } as React.CSSProperties
+            }
+          >
+            Our <span className="text-[#FA8837]">AI Solutions</span>
+            <br />
+            Consulting &amp; Custom
+            <br />
+            Solutions Development
+          </span>
+          <span
+            className="t-stagger-line mt-1.5 text-[11px] font-medium leading-snug text-white/90 md:text-[12.5px]"
+            style={{ textShadow: SHADOW, '--t-line': 1 } as React.CSSProperties}
+          >
+            Empowering Enterprises with Intelligent AI Solutions
+          </span>
         </span>
       </span>
 
-      {/* The site's own text, over the video rather than baked into it — see
-          the docblock. Colour and wording are the source frame's own
-          ("Our AI Solutions..." / orange on "AI Solutions" only).
-          
-          The scrim is a small patch behind the text, not a panel behind the
-          card: a full-height, 60%-wide flat-black rectangle (the first cut
-          at hiding the video's own baked headline) covered nearly half of
-          EVERY row of the card, including the open water and pills nowhere
-          near the text, and read as "the video is broken" rather than "there
-          is a caption here." A bottom-left radial vignette tapers out in
-          both directions at once, so it darkens only the text's own corner —
-          confirmed by column-averaged luminance across the full card height
-          after this change (see the corresponding fix commentary): the flat
-          -black footprint that used to span 47% of every row is gone. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            'radial-gradient(ellipse 82% 68% at 0% 100%, rgba(2,14,24,0.95) 0%, rgba(2,14,24,0.88) 48%, rgba(2,14,24,0.55) 70%, rgba(2,14,24,0.12) 90%, rgba(2,14,24,0) 100%)',
-        }}
-      />
-      <span className="pointer-events-none absolute inset-x-0 bottom-0 px-3.5 pb-3 sm:px-5 sm:pb-4 md:px-7 md:pb-6">
-        {/* `text-shadow` carries legibility the rest of the way where the
-            vignette has already faded — e.g. the tail of "Solutions
-            Development" — without needing the scrim itself any bigger. */}
-        <span
-          className="block text-[12.5px] font-medium leading-[1.24] tracking-[-0.005em] text-white sm:text-[15px] md:text-[18px] lg:text-[21px]"
-          style={{ textShadow: '0 1px 10px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.9)' }}
-        >
-          Our <span className="text-[#FA8837]">AI Solutions</span>
-          <br />
-          Consulting &amp; Custom
-          <br />
-          Solutions Development
-        </span>
-        <span
-          className="mt-1 block text-[9px] font-medium leading-snug text-white/90 sm:mt-1.5 sm:text-[10.5px] md:text-[12.5px]"
-          style={{ textShadow: '0 1px 8px rgba(0,0,0,0.75), 0 1px 2px rgba(0,0,0,0.9)' }}
-        >
-          Empowering Enterprises with Intelligent AI Solutions
-        </span>
+      {/* Under the plate, never over it, so nothing covers the ship. */}
+      <span className="t-stagger-line" style={{ '--t-line': 2 } as React.CSSProperties}>
+        <ServiceList className="relative px-3.5 pb-2 pt-2 sm:px-5 md:px-7 md:pb-3 md:pt-1" />
       </span>
     </span>
   );

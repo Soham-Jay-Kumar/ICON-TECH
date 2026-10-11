@@ -53,11 +53,9 @@ export function WhatWeDo() {
             What We Do
           </p>
         </Reveal>
-        <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+        <Reveal variant="rise-mask" delay={80}>
           <h2 className="mt-4 text-[2.25rem] font-medium leading-[1.2] tracking-[-0.01em] text-white md:mt-[16px] md:text-[53.3px] md:leading-[69px]">
-            From dashboards to decisions.
-            <br className="hidden md:block" />
-            From insights to execution
+            From Strategy to Intelligence Execution
             <span className="text-[#FA8837]">.</span>
           </h2>
         </Reveal>

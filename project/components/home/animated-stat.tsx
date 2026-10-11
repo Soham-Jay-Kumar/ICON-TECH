@@ -1,65 +1,62 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 
-// Runs before paint on the client, no-ops on the server — so the reset to 0
-// happens before the browser ever paints the hydrated final value (no flash of
-// the finished number before the count starts).
+// Runs before paint on the client, no-ops on the server — so the switch to
+// the waiting reels happens before the browser ever paints the hydrated final
+// value (no flash of the finished number before the spin starts).
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 type AnimatedStatProps = {
   value: string;
   className?: string;
-  /** Runs the count once this flips true; ignored after the first count starts. */
+  /** Runs the spin once this flips true; ignored after the first spin starts. */
   active: boolean;
-  /** Fired two-thirds of the way through this count's own run (see below). */
+  /** Fired two-thirds of the way through this stat's own run (see below). */
   onTwoThirds?: () => void;
-  /** Fired the instant the count reaches its final value. */
+  /** Fired the instant the last reel lands. */
   onComplete?: () => void;
 };
 
-function parseStat(value: string): { end: number; suffix: string } {
+/** Full turns each reel makes before landing — the recipe's "several". */
+const SPINS = 3;
+
+function parseStat(value: string): { digits: number[]; suffix: string } {
   const match = value.match(/^(\d+)(.*)$/);
-  if (!match) return { end: 0, suffix: value };
-  return { end: Number(match[1]), suffix: match[2] };
+  if (!match) return { digits: [], suffix: value };
+  return { digits: match[1].split('').map(Number), suffix: match[2] };
 }
 
-function easeOutCubic(t: number) {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-/**
- * Fraction of the nominal duration (0–1) at which the *rounded* displayed
- * integer reaches `end`. Because of rounding this happens before t=1 — e.g.
- * for end=30 it lands at t≈0.744 — so it's the right reference point for
- * "N% of the way through this count", not the nominal duration itself.
- */
-function completionFraction(end: number) {
-  if (end <= 0) return 0;
-  return 1 - Math.cbrt(0.5 / end);
-}
-
-function readDurationMs(): number {
-  if (typeof window === 'undefined') return 1600;
-  // The count is a headline moment, so it runs on the epic tier — a slow,
-  // clearly-legible tick rather than a blink. Under reduced motion this var is
-  // ~0 and the caller snaps straight to the final value.
-  const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue('--motion-duration-epic')
-    .trim();
-  const parsed = Number.parseFloat(raw);
-  return Number.isFinite(parsed) ? parsed : 1600;
+function readMs(name: string, fallback: number): number {
+  const parsed = Number.parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue(name)
+  );
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 /**
- * Counts from 0 to the leading integer in `value` once `active` is true.
- * "24/7" → 0…24 then "/7"; "30%" → 0…30 then "%".
- * Falls back to the final string immediately under reduced motion.
+ * transitions.dev spinning counter (app/transitions.css, `.t-reel-*`): each
+ * digit of the stat's leading integer is a clipped reel of 0–9 cells that
+ * spins up through SPINS full turns and lands on its digit, the columns
+ * --reel-stagger apart, under a vertical-only motion blur that decays as each
+ * reel settles. "24/7" spins "2" and "4" and keeps "/7" still; "30%" spins
+ * "3" and "0".
  *
- * Sequencing multiple stats (one waiting for the previous to finish before
- * it starts) is the caller's job via `active`/`onComplete` — this component
- * only knows how to run its own count once told to.
+ * Three states, so the stat is always readable:
+ *   - server / no JS / reduced motion: the plain final string;
+ *   - hydrated, waiting its turn in the cascade: reels resting on 0;
+ *   - landed: the plain final string again. The reels are a vehicle for the
+ *     spin only, so the resting number is exactly the DESIGN.md text, with
+ *     its own kerning, rather than glyphs centred in measured columns.
+ *
+ * Each column is sized by an invisible copy of its *final* digit and the
+ * strip is centred over it, so the landing frame already sits where the
+ * plain text will, and the swap back to text does not move a pixel.
+ *
+ * Sequencing several stats (the next starting while this one finishes) is
+ * the caller's job via `active` / `onTwoThirds` — this component only knows
+ * how to run its own spin once told to.
  */
 export function AnimatedStat({
   value,
@@ -68,89 +65,141 @@ export function AnimatedStat({
   onTwoThirds,
   onComplete,
 }: AnimatedStatProps) {
-  const { end, suffix } = parseStat(value);
-  const [display, setDisplay] = useState(value);
+  const { digits, suffix } = parseStat(value);
+  const [phase, setPhase] = useState<'text' | 'reels' | 'done'>('text');
   const started = useRef(false);
+  const stripRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const colRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const blurRefs = useRef<(SVGFEGaussianBlurElement | null)[]>([]);
   const onTwoThirdsRef = useRef(onTwoThirds);
   onTwoThirdsRef.current = onTwoThirds;
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  const filterId = useId().replace(/:/g, '');
 
-  // Reset to 0 before the first client paint, so the first visible frame is the
-  // start of the count — never a flash of the final value that then jumps back
-  // to 0 to count up. Runs before paint (layout effect), and only when JS is
-  // present, so no-JS/SSR still renders the final value.
+  const reduceMotion = () =>
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   useIsomorphicLayoutEffect(() => {
-    const reduceMotion =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!reduceMotion) setDisplay(`0${suffix}`);
-  }, [suffix]);
+    if (!reduceMotion() && digits.length > 0) setPhase('reels');
+    // Parsed from `value`, which is the only input that matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   useEffect(() => {
     if (!active || started.current) return;
     started.current = true;
 
-    const reduceMotion =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reduceMotion) {
-      setDisplay(value);
+    if (phase !== 'reels') {
       onTwoThirdsRef.current?.();
       onCompleteRef.current?.();
       return;
     }
 
-    const duration = readDurationMs();
-    // Near-zero CSS override (reduced motion) → snap to final value.
-    if (duration < 1) {
-      setDisplay(value);
-      onTwoThirdsRef.current?.();
-      onCompleteRef.current?.();
-      return;
-    }
+    const dur = readMs('--reel-dur', 1400);
+    const stagger = readMs('--reel-stagger', 90);
+    const total = dur + stagger * (digits.length - 1);
+    const timers: number[] = [];
+    let raf = 0;
 
-    // Trigger point for onTwoThirds: two-thirds of the way to this count's
-    // own completion (see completionFraction), not two-thirds of the
-    // nominal duration — so the next stat starts while this one is still
-    // visibly finishing its last third, overlapping by design.
-    const tTrigger = completionFraction(end) * (2 / 3);
-    let triggeredTwoThirds = false;
+    // The recipe tunes its blur against a 30px cell; scale it to this one.
+    const cellPx = stripRefs.current[0]?.firstElementChild?.getBoundingClientRect().height ?? 30;
+    const spinBlur = readMs('--reel-spin-blur', 3) * (cellPx / 30);
 
-    const start = performance.now();
-    let raf = requestAnimationFrame(function tick(now) {
-      // rAF's `now` can land fractionally before `start` on the very first
-      // frame; clamp so the eased curve never dips negative (was flashing
-      // e.g. "-1/7" for one frame).
-      const t = Math.min(1, Math.max(0, (now - start) / duration));
-      const current = Math.round(easeOutCubic(t) * end);
-      setDisplay(`${current}${suffix}`);
-
-      if (!triggeredTwoThirds && t >= tTrigger) {
-        triggeredTwoThirds = true;
-        onTwoThirdsRef.current?.();
-      }
-
-      // Rounding means the displayed integer reaches `end` before t hits 1
-      // (e.g. for end=30, at ~74% of the duration) — the ease-out curve
-      // spends its last stretch converging asymptotically on a value
-      // that's already on screen. Waiting for t===1 to settle left it
-      // visibly frozen for that whole stretch, so we finish here instead.
-      if (current >= end) {
-        setDisplay(value);
-        if (!triggeredTwoThirds) {
-          triggeredTwoThirds = true;
-          onTwoThirdsRef.current?.();
-        }
-        onCompleteRef.current?.();
-        return;
-      }
-      raf = requestAnimationFrame(tick);
+    digits.forEach((digit, i) => {
+      const strip = stripRefs.current[i];
+      if (!strip) return;
+      colRefs.current[i]?.classList.add('is-spinning');
+      strip.style.filter = `url(#${filterId}-${i})`;
+      strip.style.transition = `transform var(--reel-dur) var(--reel-ease) ${i * stagger}ms`;
+      strip.style.transform = `translateY(calc(var(--reel-cell) * -${SPINS * 10 + digit}))`;
     });
 
-    return () => cancelAnimationFrame(raf);
-  }, [active, value, end, suffix]);
+    // Decay each column's vertical blur over its own window, steepest at the
+    // start where the eased reel moves fastest.
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      let moving = false;
+      digits.forEach((_, i) => {
+        const p = Math.min(1, Math.max(0, (now - t0 - i * stagger) / dur));
+        if (p < 1) moving = true;
+        const y = p === 0 ? spinBlur : spinBlur * Math.pow(1 - p, 3);
+        blurRefs.current[i]?.setAttribute('stdDeviation', `0 ${y.toFixed(2)}`);
+      });
+      if (moving) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
 
-  return <span className={className}>{display}</span>;
+    timers.push(
+      window.setTimeout(() => onTwoThirdsRef.current?.(), (total * 2) / 3),
+      window.setTimeout(() => {
+        setPhase('done');
+        onCompleteRef.current?.();
+      }, total)
+    );
+
+    return () => {
+      cancelAnimationFrame(raf);
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+    // `phase` is read once, at the moment the spin is asked for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  if (phase !== 'reels') return <span className={className}>{value}</span>;
+
+  return (
+    <span className={className}>
+      <span className="sr-only">{value}</span>
+      <span
+        aria-hidden
+        className="t-reel"
+        // A 1em cell is the stat's own line box (its line-height is 1), and
+        // top alignment keeps the clipped columns from sitting on their
+        // synthesized bottom-edge baselines — together, the digits land on
+        // exactly the line the plain text occupies.
+        style={{ '--reel-cell': '1em', verticalAlign: 'top' } as React.CSSProperties}
+      >
+        <svg width="0" height="0" className="absolute">
+          <defs>
+            {digits.map((_, i) => (
+              <filter key={i} id={`${filterId}-${i}`} x="0" y="-50%" width="100%" height="200%">
+                <feGaussianBlur
+                  ref={(el) => {
+                    blurRefs.current[i] = el;
+                  }}
+                  stdDeviation="0 0"
+                />
+              </filter>
+            ))}
+          </defs>
+        </svg>
+        {digits.map((digit, i) => (
+          <span
+            key={i}
+            ref={(el) => {
+              colRefs.current[i] = el;
+            }}
+            className="t-reel-col"
+          >
+            <span className="invisible block leading-none">{digit}</span>
+            <span
+              ref={(el) => {
+                stripRefs.current[i] = el;
+              }}
+              className="t-reel-strip absolute inset-x-0 top-0"
+            >
+              {Array.from({ length: (SPINS + 1) * 10 }, (_, n) => (
+                <span key={n} className="t-reel-digit leading-none">
+                  {n % 10}
+                </span>
+              ))}
+            </span>
+          </span>
+        ))}
+        {suffix && <span className="leading-none">{suffix}</span>}
+      </span>
+    </span>
+  );
 }

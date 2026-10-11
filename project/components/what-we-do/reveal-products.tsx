@@ -1,7 +1,6 @@
 import {
   CalendarCheck,
   ChevronUp,
-  Compass,
   ScanSearch,
   Sparkles,
 } from 'lucide-react';
@@ -13,41 +12,33 @@ const DASH_V =
   'repeating-linear-gradient(180deg, #3FA6A0 0 5px, transparent 5px 12px)';
 
 /**
- * The loop, and when each stage arrives. Delays are literal class strings for
- * the same reason as the consulting pills: Tailwind only generates what it can
- * see, and keeping them on the triggered state means the four leave together
- * instead of unwinding one by one as the cursor exits.
+ * The loop. Each stage's place in the face's texts-reveal order (`line`, see
+ * RevealProducts): the three tiles follow the heading block one
+ * --stagger-stagger beat apart.
  */
 const STAGES = [
   {
-    label: 'Observe',
+    label: 'Detect',
     Icon: ScanSearch,
-    body: 'Monitor fleet operations continuously',
-    delay:
-      'group-hover:delay-[180ms] group-focus-visible:delay-[180ms] group-data-[on=true]:delay-[180ms]',
+    body: 'Continuously monitor operational signals, risks and opportunities',
+    line: 3,
   },
   {
-    label: 'Reason',
+    label: 'Decide',
     Icon: Sparkles,
-    body: 'Analyze data across multiple operational systems',
-    delay:
-      'group-hover:delay-[250ms] group-focus-visible:delay-[250ms] group-data-[on=true]:delay-[250ms]',
+    body: 'Connect context investigate and recommend the next action',
+    line: 4,
   },
   {
     label: 'Deliver',
     Icon: CalendarCheck,
-    body: 'Provide the right insight to the right person at the right time',
-    delay:
-      'group-hover:delay-[320ms] group-focus-visible:delay-[320ms] group-data-[on=true]:delay-[320ms]',
-  },
-  {
-    label: 'Empower',
-    Icon: Compass,
-    body: 'Enable faster, smarter operational decisions',
-    delay:
-      'group-hover:delay-[390ms] group-focus-visible:delay-[390ms] group-data-[on=true]:delay-[390ms]',
+    body: 'Coordinate, follow up and verify execution',
+    line: 5,
   },
 ];
+
+/** `--t-line` is this element's index in the face's staggered entrance. */
+const lineStyle = (line: number) => ({ '--t-line': line }) as React.CSSProperties;
 
 /**
  * One stage of the loop.
@@ -62,21 +53,24 @@ const STAGES = [
  * The keyboard and touch cases open every sentence at once, deliberately.
  * The tiles sit inside the card's own <button> and cannot be focused
  * separately, so there is no "which tile" for a keyboard user to express;
- * showing all four is the only reading that leaves nothing unreachable. It
+ * showing all three is the only reading that leaves nothing unreachable. It
  * costs nothing visually because the space is reserved either way.
  */
 function Stage({
   label,
   Icon,
   body,
-  delay,
+  line,
 }: {
   label: string;
   Icon: typeof ScanSearch;
   body: string;
-  delay: string;
+  line: number;
 }) {
   return (
+    // The entrance rides on this block wrapper (the recipe's `.t-stagger-line`
+    // is `display: block`, which would flatten the tile's own flex column).
+    <span className="t-stagger-line" style={lineStyle(line)}>
     <span
       className={[
         // `justify-center`, not a top-anchored stack: the tile reserves room
@@ -85,14 +79,9 @@ function Stage({
         // every label. Centred, the icon and label rest in the middle and
         // settle upward as the sentence opens — movement inside the tile,
         // which the row absorbs, rather than movement of the row itself.
-        'group/mini relative flex flex-col items-center justify-center rounded-[3px] px-2.5 py-3 text-center',
+        'group/mini relative flex h-full flex-col items-center justify-center rounded-[3px] px-2.5 py-3 text-center',
         'min-h-[170px] bg-white/[0.05] ring-1 ring-inset ring-white/[0.08]',
-        'transition duration-ui ease-premium hover:bg-white/[0.1]',
-        'translate-y-3 opacity-0',
-        'group-hover:translate-y-0 group-hover:opacity-100',
-        'group-focus-visible:translate-y-0 group-focus-visible:opacity-100',
-        'group-data-[on=true]:translate-y-0 group-data-[on=true]:opacity-100',
-        delay,
+        'transition-colors duration-ui ease-premium hover:bg-white/[0.1]',
         'motion-reduce:transition-none',
       ].join(' ')}
     >
@@ -123,6 +112,7 @@ function Stage({
         </span>
       </span>
     </span>
+    </span>
   );
 }
 
@@ -142,9 +132,16 @@ function Riser() {
   );
 }
 
+/**
+ * Everything on this face enters as one transitions.dev texts reveal
+ * (`t-stagger-hover`, app/transitions.css): each line rises 12px out of a 3px
+ * blur, --stagger-stagger (40ms) after the one before — eyebrow, heading,
+ * summary, three tiles, then the loop line, 280ms end to end. Leaving the
+ * card is the recipe's quiet exit: one 200ms fade, no reverse stagger.
+ */
 export function RevealProducts() {
   return (
-    <span className="relative block h-full w-full overflow-hidden">
+    <span className="t-stagger-hover relative block h-full w-full overflow-hidden">
       <span
         aria-hidden
         className="absolute inset-0"
@@ -164,46 +161,28 @@ export function RevealProducts() {
             FuelSense cards, this face runs straight into the loop, and neither
             should move when the other does. */}
         <span
-          className={[
-            'block text-center text-[11px] font-medium uppercase tracking-[0.14em] text-[#4FC3BC] lg:text-[12.5px]',
-            'translate-y-3 opacity-0 transition duration-ui ease-premium delay-0',
-            'group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[60ms]',
-            'group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-[60ms]',
-            'group-data-[on=true]:translate-y-0 group-data-[on=true]:opacity-100 group-data-[on=true]:delay-[60ms]',
-            'motion-reduce:transition-none',
-          ].join(' ')}
+          className="t-stagger-line text-center text-[11px] font-medium uppercase tracking-[0.14em] text-[#4FC3BC] lg:text-[12.5px]"
+          style={lineStyle(0)}
         >
           Products
         </span>
 
         <span
-          className={[
-            'mt-2 block text-center text-[clamp(1.4rem,2vw,31px)] font-semibold leading-[1.15] text-white',
-            'translate-y-3 opacity-0 transition duration-ui ease-premium delay-0',
-            'group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[110ms]',
-            'group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-[110ms]',
-            'group-data-[on=true]:translate-y-0 group-data-[on=true]:opacity-100 group-data-[on=true]:delay-[110ms]',
-            'motion-reduce:transition-none',
-          ].join(' ')}
+          className="t-stagger-line mt-2 text-center text-[clamp(1.4rem,2vw,31px)] font-semibold leading-[1.15] text-white"
+          style={lineStyle(1)}
         >
           The Sense Series<span className="text-[#FA8837]">.</span>
         </span>
 
         <span
-          className={[
-            'mx-auto mt-2.5 block max-w-[46ch] text-center text-[11.5px] leading-[1.55] text-white/75 lg:text-[13px]',
-            'translate-y-3 opacity-0 transition duration-ui ease-premium delay-0',
-            'group-hover:translate-y-0 group-hover:opacity-100 group-hover:delay-[150ms]',
-            'group-focus-visible:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:delay-[150ms]',
-            'group-data-[on=true]:translate-y-0 group-data-[on=true]:opacity-100 group-data-[on=true]:delay-[150ms]',
-            'motion-reduce:transition-none',
-          ].join(' ')}
+          className="t-stagger-line mx-auto mt-2.5 max-w-[46ch] text-center text-[11.5px] leading-[1.55] text-white/75 lg:text-[13px]"
+          style={lineStyle(2)}
         >
           We build AI-agentic platforms designed specifically for maritime
           operations.
         </span>
 
-        <span className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4 lg:gap-2.5">
+        <span className="mt-5 grid grid-cols-3 gap-2 lg:gap-2.5">
           {STAGES.map((s) => (
             <Stage key={s.label} {...s} />
           ))}
@@ -212,16 +191,8 @@ export function RevealProducts() {
         {/* The loop line: risers turning up into a dashed rule at both ends,
             with the label breaking the rule at its centre rather than sitting
             on an opaque chip, which would show a seam against the dot field. */}
-        <span
-          className={[
-            'mb-1 mt-4 flex h-7 items-end gap-2',
-            'opacity-0 transition-opacity duration-ui ease-premium delay-0',
-            'group-hover:opacity-100 group-hover:delay-[450ms]',
-            'group-focus-visible:opacity-100 group-focus-visible:delay-[450ms]',
-            'group-data-[on=true]:opacity-100 group-data-[on=true]:delay-[450ms]',
-            'motion-reduce:transition-none',
-          ].join(' ')}
-        >
+        <span className="t-stagger-line mb-1 mt-4" style={lineStyle(7)}>
+        <span className="flex h-7 items-end gap-2">
           <Riser />
           {/* `items-end` lands this row's BOTTOM on the risers' feet;
               translating it down by half its own height lands its CENTRE
@@ -242,6 +213,7 @@ export function RevealProducts() {
             />
           </span>
           <Riser />
+        </span>
         </span>
       </span>
     </span>

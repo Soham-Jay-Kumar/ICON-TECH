@@ -27,10 +27,18 @@
 
     /* Motion system tokens — see TRANSITIONS.md. Every transition/animation
        in the site reads these vars, so reduced-motion below can disable
-       everything from one place. */
+       everything from one place.
+
+       ui, reveal and the two eases are aliases onto the transitions.dev
+       scale in app/transitions.css, matched on usage rather than on the
+       nearest number: `ui` carries hover lifts, the menu open, tab slides
+       and panel swaps (transitions.dev: 250ms), `reveal` carries text
+       reveals (500ms), and both UI and entrances settle on the smooth-out
+       curve. micro, hero, cinematic, epic and ease-cine have no matching
+       transitions.dev usage and keep their own values. */
     --motion-duration-micro: 200ms;
-    --motion-duration-ui: 350ms;
-    --motion-duration-reveal: 550ms;
+    --motion-duration-ui: var(--duration-fast);
+    --motion-duration-reveal: var(--duration-very-slow);
     --motion-duration-hero: 850ms;
     /* Cinematic tier (TRANSITIONS.md §2/§3). The long, patient band reserved
        for major typography, hero/ship media and the masked section seams —
@@ -39,8 +47,8 @@
        how UI elements move. */
     --motion-duration-cinematic: 1200ms;
     --motion-duration-epic: 1600ms;
-    --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-    --motion-ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-standard: var(--ease-smooth-out);
+    --motion-ease-premium: var(--ease-smooth-out);
     /* The one signature entrance curve for the cinematic tier — a long,
        gliding ease-out, no overshoot. */
     --motion-ease-cine: cubic-bezier(0.19, 1, 0.22, 1);
@@ -217,6 +225,35 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .sonar-ping-anim {
+      animation: none;
+    }
+  }
+
+  /* Hero alert hotspots: one ring leaves each marker on the hull and fades,
+     then the marker rests for the last third of the cycle. Slow on purpose —
+     it is there to lead the eye from hotspot to leader to card, not to read as
+     activity. Base opacity 0, like sonar-ping, so reduced motion (animation
+     removed) leaves the hull's own painted marker and no stuck ring. */
+  @keyframes hotspot-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.85;
+    }
+    66% {
+      transform: scale(2.3);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(2.3);
+      opacity: 0;
+    }
+  }
+  .hotspot-pulse-anim {
+    opacity: 0;
+    animation: hotspot-pulse 3s var(--motion-ease-premium) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hotspot-pulse-anim {
       animation: none;
     }
   }

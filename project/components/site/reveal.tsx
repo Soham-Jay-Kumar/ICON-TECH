@@ -26,22 +26,31 @@ type RevealProps = {
 // Hidden (pre-reveal) state per variant, scoped to `.js &` so the element is
 // only ever hidden when JavaScript has confirmed it will animate back in.
 // Without JS (or if it fails), the base classes below keep content visible.
+//
+// Every moving variant carries a cross-blur lane, transitions.dev's signature
+// (app/transitions.css): type uses the texts-reveal values (12px rise, 3px
+// blur), panels and media the softer panel-reveal blur (2px). `fade` and
+// `mask` stay unblurred — blur softens a slide, never a plain fade or a clip.
 const HIDDEN_STATE: Record<RevealVariant, string> = {
-  rise: '[.js_&]:opacity-0 [.js_&]:translate-y-6',
+  // transitions.dev texts reveal: --distance-medium rise, --blur-medium.
+  rise: '[.js_&]:opacity-0 [.js_&]:translate-y-[var(--stagger-distance)] [.js_&]:[filter:blur(var(--stagger-blur))]',
   fade: '[.js_&]:opacity-0',
   // Clip variant (applied on the inner wrapper; kept here so lookups are total).
   mask: '[.js_&]:opacity-0 [.js_&]:[clip-path:inset(0_0_100%_0)]',
   // Masked line-rise: the child sits fully below its own clipping frame and
-  // slides up into view. The signature cinematic reveal — type rises from
-  // behind a hard edge. Applied on the inner wrapper (see the branch below).
-  'rise-mask': '[.js_&]:translate-y-full [.js_&]:opacity-0',
+  // slides up into view, resolving out of the texts-reveal blur as it does —
+  // type rises from behind a hard edge. Applied on the inner wrapper (see the
+  // branch below).
+  'rise-mask':
+    '[.js_&]:translate-y-full [.js_&]:opacity-0 [.js_&]:[filter:blur(var(--stagger-blur))]',
   // Directional entrances for side-by-side groups, so a pair reads as
   // converging on the layout rather than both rising identically.
-  left: '[.js_&]:opacity-0 [.js_&]:-translate-x-8',
-  right: '[.js_&]:opacity-0 [.js_&]:translate-x-8',
+  left: '[.js_&]:opacity-0 [.js_&]:-translate-x-8 [.js_&]:[filter:blur(var(--blur-small))]',
+  right: '[.js_&]:opacity-0 [.js_&]:translate-x-8 [.js_&]:[filter:blur(var(--blur-small))]',
   // Media "develops" into place: rises a good distance and settles from
   // noticeably larger (1.06 → 1.0), a slow camera-settle rather than a slide.
-  'rise-scale': '[.js_&]:opacity-0 [.js_&]:translate-y-10 [.js_&]:scale-[1.06]',
+  'rise-scale':
+    '[.js_&]:opacity-0 [.js_&]:translate-y-10 [.js_&]:scale-[1.06] [.js_&]:[filter:blur(var(--blur-small))]',
 };
 
 const DURATION_CLASS: Record<RevealDuration, string> = {
@@ -51,7 +60,8 @@ const DURATION_CLASS: Record<RevealDuration, string> = {
   epic: 'duration-epic',
 };
 
-// Entrance ease by tier: base/slow settle on `ease-premium`; the cinematic
+// Entrance ease by tier: base/slow settle on `ease-premium` (transitions.dev's
+// smooth-out); the cinematic
 // tier uses the longer, gliding `ease-cine` — the visual split between how
 // major elements arrive and how UI reacts (TRANSITIONS.md §3).
 const EASE_CLASS: Record<RevealDuration, string> = {
@@ -62,7 +72,7 @@ const EASE_CLASS: Record<RevealDuration, string> = {
 };
 
 const MOTION_BASE =
-  'transition-[opacity,transform,clip-path] motion-reduce:transition-none';
+  'transition-[opacity,transform,clip-path,filter] motion-reduce:transition-none';
 
 // Avoids the "useLayoutEffect does nothing on the server" warning while
 // still running before paint on the client, so reduced-motion users never

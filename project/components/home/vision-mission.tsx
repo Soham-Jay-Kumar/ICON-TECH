@@ -411,7 +411,7 @@ export function VisionMission() {
         body="Building a future where complex decisions are trusted, timely, and action-ready—guided by AI, governed by people."
       />
       <Panel
-        delay={120}
+        delay={80}
         from="right"
         cells={MISSION_CELLS}
         glyph={<MissionGlyph />}

@@ -15,9 +15,9 @@
 //                       continuously across the band and behind the hull. Under
 //                       it, WATER_STILL_URL holds a ship-free render of the same
 //                       wave artwork until the canvas has something to show.
-//   3. the ship       — SHIP_URL, a cutout of the hull, the superstructure and
-//                       both callout leaders, drawn over the water with normal
-//                       blending and bobbing on it.
+//   3. the ship       — SHIP_URL, a cutout of the hull and the superstructure
+//                       (the source's callout leaders erased), drawn over the
+//                       water with normal blending and bobbing on it.
 //
 // They deliberately do not reconstruct the original flattened plate exactly:
 // the ship is 75% of that original size, so the static plate and fallback water
@@ -85,9 +85,9 @@ export const WATER_STILL_URL = '/images/hero-water-still.jpg';
 export const SHIP_URL = '/images/hero-ship.png';
 
 /**
- * The requested resting scale for the complete ship layer. The callout leaders
- * are baked into that layer, so hero.tsx applies this same scale to their text
- * around the shared waterline pivot.
+ * The requested resting scale for the complete ship layer, about SHIP_PIVOT.
+ * hero.tsx scales the alert hotspots (CALLOUT_MARKERS) by the same amount so
+ * its cards and leaders land on the markers the raster actually draws.
  */
 export const HERO_SHIP_SCALE = 0.75;
 
@@ -98,7 +98,7 @@ export const HERO_SHIP_SCALE = 0.75;
  * scripts/check-sea-ship.js asserts the two still agree, because a stale value
  * scales the hull against the water it is meant to be sitting in.
  */
-export const SHIP_RECT = { x0: 432, y0: 2, x1: 1210, y1: 593 };
+export const SHIP_RECT = { x0: 533, y0: 2, x1: 1040, y1: 593 };
 
 /**
  * The ship layer's box as CSS percentages of the plate.
@@ -118,13 +118,24 @@ export const SHIP_BOX = {
  * centreline is BOW_X = 771 in reference px.
  *
  * Exported in plate reference px as well as the percentage form below, because
- * the two callout labels have to rotate about this same point to stay welded
- * to their leader lines — and those leaders are drawn *inside* the ship raster,
- * so they inherit the hull's transform whether anything else agrees with it or
- * not. Anything that needs to move with the ship reads this rather than
+ * the hero's alert cards follow their hotspots — markers drawn *inside* the
+ * ship raster — and so have to work out the hull's transform about this same
+ * point. Anything that needs to move with the ship reads this rather than
  * repeating the numbers.
  */
 export const SHIP_PIVOT_REF = { x: 771, y: 585 };
+
+/**
+ * The two alert hotspots: the white-cored discs painted on the hull, in plate
+ * reference px of the UNSCALED artwork (centre and radius), as measured in
+ * scripts/build-hero-masks.py's CALLOUT_MARKERS. They are part of the ship
+ * raster, so on the page they sit at SHIP_PIVOT_REF + HERO_SHIP_SCALE x (this
+ * - pivot) and ride the hull's transform.
+ */
+export const CALLOUT_MARKERS = {
+  hull: { x: 629, y: 364, r: 21 },
+  fuel: { x: 979, y: 274, r: 21 },
+};
 
 export const SHIP_PIVOT = `${(((SHIP_PIVOT_REF.x - SHIP_RECT.x0) / (SHIP_RECT.x1 - SHIP_RECT.x0)) * 100).toFixed(2)}% ${(((SHIP_PIVOT_REF.y - SHIP_RECT.y0) / (SHIP_RECT.y1 - SHIP_RECT.y0)) * 100).toFixed(2)}%`;
 

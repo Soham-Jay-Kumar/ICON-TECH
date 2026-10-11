@@ -40,7 +40,7 @@ const PLATE_H = 630;
  * against the water it is meant to be sitting in, by a margin small enough to
  * miss by eye.
  */
-const SHIP_RECT = { x0: 432, y0: 2, x1: 1210, y1: 593 };
+const SHIP_RECT = { x0: 533, y0: 2, x1: 1040, y1: 593 };
 
 /**
  * Bounds on the bob, in plate px peak to peak.

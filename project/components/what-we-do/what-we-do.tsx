@@ -53,11 +53,11 @@ export function WhatWeDo({
             onToggle={() => toggle('ai-consulting')}
             title={
               <>
-                AI Consulting &amp; Custom Solutions
-                <br className="hidden lg:block" /> Development
+                Digital Consulting and
+                <br className="hidden lg:block" /> Technology Services
               </>
             }
-            body="Design and deploy AI solutions aligned with your systems, data, and workflows."
+            body="Help businesses shape digital and AI strategies, drive transformation, and develop custom AI solutions that deliver measurable business value"
             reveal={consulting}
           />
           <Box

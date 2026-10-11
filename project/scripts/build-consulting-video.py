@@ -11,7 +11,7 @@ to 2.76 across the breakpoints, and the text spans x 420-1674, straight through
 the middle of every framing that also keeps the ship. So it comes out of the
 asset instead.
 
-Everything else the clip has burned in stays: the "Systems"/"Data"/"Workflows"
+Everything else the clip has burned in stays: the "Systems"/"People"/"Data"/"Workflows"
 pills are the footage's subject matter, the ICON logo is the company's own, and
 the MINIMAX/Hailuo AI watermark (y 1110-1175) is already below the component's
 y<1050 crop window and never reaches the screen.
@@ -39,8 +39,8 @@ averages away, so a bright crest passing through a box on one frame cannot
 punch a hole in the mask -- and then applied unchanged to every frame, which is
 what keeps the repaint from shimmering.
 
-Input is ../ship1video.mp4 at the repo root, the pristine delivery (byte
--identical to what public/ shipped before this script existed). It is read-only
+Input is ../ship_with_people.mp4 at the repo root, the pristine delivery (the
+same shot as the earlier ship1video.mp4 with a fourth "People" pill). It is read-only
 here; rerunning always starts from the original, never from a previous output.
 
     python3 scripts/build-consulting-video.py
@@ -61,7 +61,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.dirname(HERE)
 REPO = os.path.dirname(PROJECT)
 
-SRC = os.path.join(REPO, "ship1video.mp4")
+SRC = os.path.join(REPO, "ship_with_people.mp4")
 OUT_MP4 = os.path.join(PROJECT, "public", "what-we-do-consulting.mp4")
 OUT_POSTER = os.path.join(PROJECT, "public", "what-we-do-consulting-poster.jpg")
 OUT_MASK = os.path.join(HERE, "out", "consulting-text-mask.png")
@@ -89,6 +89,14 @@ INPAINT_RADIUS = 8
 # component still frames the poster exactly as it frames the video.
 POSTER_FRAME = 2
 POSTER_QUALITY = 85
+
+# Delivered width. The repaint runs at the source's full 2944px, but the card
+# never draws the frame wider than ~921 CSS px (~1842 device px at 2x), and at
+# full size the clip was ~5MB and too slow to start: on hover the poster stood
+# still for ~3.7s before the first decoded frame (measured in Chrome). 1920
+# keeps it sharp on a 2x screen at a fraction of the bytes and decode cost.
+# Height follows the source aspect, rounded to even for yuv420p.
+OUT_W = 1920
 
 # Regions that must survive untouched -- asserted against the output.
 KEEP = {
@@ -154,8 +162,13 @@ def repaint(frame, mask):
     return out
 
 
+def out_size(w, h):
+    return OUT_W, int(round(h * OUT_W / w / 2)) * 2
+
+
 def encode(frames, ffmpeg, fps, size):
     w, h = size
+    ow, oh = out_size(w, h)
     cmd = [
         ffmpeg, "-y", "-hide_banner", "-loglevel", "error",
         # the repainted frames
@@ -171,6 +184,7 @@ def encode(frames, ffmpeg, fps, size):
         # pc") measures better here but changes what the decoder is told, which
         # is a far bigger risk than 1/255.
         "-sws_flags", "lanczos+accurate_rnd+full_chroma_int",
+        "-vf", f"scale={ow}:{oh}",
         "-c:v", "libx264", "-preset", "slow", "-crf", "21", "-pix_fmt", "yuv420p",
         "-c:a", "copy",
         "-movflags", "+faststart",
@@ -185,8 +199,18 @@ def encode(frames, ffmpeg, fps, size):
 
 
 def verify(src_frames, mask):
-    """Check the output: headline gone, everything else where it was."""
+    """Check the output: headline gone, everything else where it was.
+
+    The output is delivered at OUT_W, so each of its frames is scaled back up
+    to source size for the checks below, which are all in source pixels.
+    """
     out_frames = read_frames(OUT_MP4)
+    h, w = src_frames[0].shape[:2]
+    ow, oh = out_size(w, h)
+
+    def up(f):
+        return cv2.resize(f, (w, h), interpolation=cv2.INTER_CUBIC)
+
     ok = True
 
     def check(label, condition, detail):
@@ -201,13 +225,13 @@ def verify(src_frames, mask):
     )
     check(
         "dimensions",
-        out_frames[0].shape == src_frames[0].shape,
+        out_frames[0].shape[:2] == (oh, ow),
         f"{out_frames[0].shape[1]}x{out_frames[0].shape[0]}",
     )
 
     # No glyph survives: nothing in the four boxes crosses the threshold that
     # separated text from water in the first place.
-    region = np.stack([f[RY0:RY1, RX0:RX1] for f in out_frames])
+    region = np.stack([up(f)[RY0:RY1, RX0:RX1] for f in out_frames])
     gray = cv2.cvtColor(np.median(region, 0).astype(np.uint8), cv2.COLOR_BGR2GRAY)
     worst = 0
     for x0, x1, y0, y1 in BOXES:
@@ -216,7 +240,7 @@ def verify(src_frames, mask):
 
     # The kept overlays are still where they read today.
     for label, (x0, x1, y0, y1) in KEEP.items():
-        bright = (cv2.cvtColor(out_frames[0], cv2.COLOR_BGR2GRAY)[y0:y1, x0:x1] > 200)
+        bright = (cv2.cvtColor(up(out_frames[0]), cv2.COLOR_BGR2GRAY)[y0:y1, x0:x1] > 200)
         ys, xs = np.nonzero(bright)
         found = len(xs) > 0
         detail = (
@@ -226,9 +250,14 @@ def verify(src_frames, mask):
         check(f"kept: {label}", found, detail)
 
     # Outside the mask, the only difference should be recompression noise.
+    # The source goes through the same down-and-up resample as the output, so
+    # the scaling itself is not counted as a difference.
     untouched = mask == 0
     diffs = [
-        float(np.abs(a.astype(np.int16) - b.astype(np.int16))[untouched].mean())
+        float(np.abs(
+            up(cv2.resize(a, (ow, oh), interpolation=cv2.INTER_AREA)).astype(np.int16)
+            - up(b).astype(np.int16)
+        )[untouched].mean())
         for a, b in zip(src_frames[::20], out_frames[::20])
     ]
     worst_diff = max(diffs)
@@ -265,7 +294,8 @@ def main():
     encode(cleaned, ffmpeg, fps, (w, h))
     print(f"  {os.path.getsize(OUT_MP4) / 1e6:.2f}MB")
 
-    cv2.imwrite(OUT_POSTER, cleaned[POSTER_FRAME], [cv2.IMWRITE_JPEG_QUALITY, POSTER_QUALITY])
+    poster = cv2.resize(cleaned[POSTER_FRAME], out_size(w, h), interpolation=cv2.INTER_AREA)
+    cv2.imwrite(OUT_POSTER, poster, [cv2.IMWRITE_JPEG_QUALITY, POSTER_QUALITY])
     print(f"poster: frame {POSTER_FRAME} -> {OUT_POSTER}  ({os.path.getsize(OUT_POSTER) / 1e6:.2f}MB)")
 
     print("verifying")

@@ -100,7 +100,7 @@ export default function ScheduleDemo() {
               the bottom of the card. */}
           <div className="grid gap-12 lg:grid-cols-[1fr_minmax(0,540px)] lg:items-stretch lg:gap-16">
             <div className="flex flex-col">
-              <Reveal duration="cinematic">
+              <Reveal>
                 <p className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-300">
                   <span
                     aria-hidden
@@ -117,7 +117,7 @@ export default function ScheduleDemo() {
                 </h1>
               </Reveal>
 
-              <Reveal delay={110}>
+              <Reveal delay={80}>
                 <ol className="mt-10 space-y-7 md:mt-12">
                   {STEPS.map((step, i) => (
                     <li

@@ -1,16 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { demoRequestSchema, type DemoRequest } from '@/lib/demo-request';
 import { cn } from '@/lib/utils';
+import { TextSwap } from '@/components/site/text-swap';
 
+// `t-input` is transitions.dev's error state shake (app/transitions.css): it
+// owns the border-colour tween and, with `is-shaking`, the shake itself.
 const FIELD_BASE =
-  'w-full rounded-xl border bg-white px-4 text-[15px] text-[#072637] placeholder:text-[#98A2B2] transition-colors duration-micro ease-standard focus:outline-none focus:ring-2';
+  't-input w-full rounded-xl border bg-white px-4 text-[15px] text-[#072637] placeholder:text-[#98A2B2] focus:outline-none focus:ring-2';
 const FIELD_IDLE =
   'border-[#E6EDF1] focus:border-[#FA8837] focus:ring-[#FA8837]/25';
-const FIELD_ERROR = 'border-[#D14343] focus:border-[#D14343] focus:ring-[#D14343]/20';
+const FIELD_ERROR = 'is-error border-[#D14343] focus:border-[#D14343] focus:ring-[#D14343]/20';
 
 function Field({
   id,
@@ -30,12 +33,11 @@ function Field({
 }) {
   return (
     <div
-      className="animate-field-in motion-reduce:animate-none"
+      className={cn('t-input-wrap animate-field-in motion-reduce:animate-none', error && 'is-error')}
       style={{
-        // Stagger step derived from the shared token, never a raw ms value.
-        // 0.35× micro ⇒ a ~280ms cascade across five fields, inside the
-        // ~400ms per-group budget in TRANSITIONS.md §6.
-        animationDelay: `calc(var(--motion-duration-micro) * ${(index * 0.35).toFixed(2)})`,
+        // transitions.dev texts reveal: one --stagger-stagger (40ms) per
+        // field, a 160ms cascade across all five.
+        animationDelay: `calc(var(--stagger-stagger) * ${index})`,
       }}
     >
       <label
@@ -47,7 +49,7 @@ function Field({
       </label>
       {children}
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 text-[12px] text-[#D14343]">
+        <p id={`${id}-error`} className="t-error-msg mt-1.5 text-[12px] text-[#D14343]">
           {error}
         </p>
       )}
@@ -61,11 +63,44 @@ export function DemoForm() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, submitCount },
   } = useForm<DemoRequest>({
     resolver: zodResolver(demoRequestSchema),
     mode: 'onSubmit',
   });
+
+  // transitions.dev error state shake: every submit that comes back invalid
+  // replays the shake on each field still in error (remove, reflow, re-add).
+  // Run after the render that applied the error classes — doing it inside
+  // react-hook-form's onInvalid would be wiped when React then rewrites the
+  // inputs' className. Unlike the recipe there is no auto-revert: a
+  // validation error stays until the field is fixed, as a form's must.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const form = formRef.current;
+    if (!submitCount || !form) return;
+    const invalid = form.querySelectorAll<HTMLElement>('.t-input[aria-invalid="true"]');
+    if (!invalid.length) return;
+    const cs = getComputedStyle(document.documentElement);
+    const ms = (name: string, fb: number) => {
+      const v = parseFloat(cs.getPropertyValue(name));
+      return Number.isFinite(v) ? v : fb;
+    };
+    const shakeMs = ms('--shake-dur-a', 80) * 2 + ms('--shake-dur-b', 60) * 2;
+    invalid.forEach((el) => {
+      el.classList.remove('is-shaking');
+      void el.offsetWidth; // force reflow
+      el.classList.add('is-shaking');
+    });
+    const t = window.setTimeout(
+      () => invalid.forEach((el) => el.classList.remove('is-shaking')),
+      shakeMs + 20
+    );
+    return () => window.clearTimeout(t);
+    // Keyed on the submit, not on `errors`: typing re-validates and must not
+    // shake a field the visitor is already correcting.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitCount]);
 
   // The success panel below promises that a specialist will follow up, so it
   // may only be shown once the request has actually been accepted for
@@ -110,20 +145,25 @@ export function DemoForm() {
           aria-hidden
           className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FEEDE0]"
         >
-          {/* Tick draws itself on: one dash the length of the path, offset to
-              hidden, animated to 0. pathLength normalises the geometry so the
-              dash values don't depend on the curve's real length. */}
-          <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7">
-            <path
-              d="M5 12.5l4.5 4.5L19 7.5"
-              stroke="#FA8837"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              pathLength={1}
-              className="animate-tick-draw motion-reduce:animate-none"
-            />
-          </svg>
+          {/* transitions.dev success check: the tick fades, rotates and rises
+              in out of a blur while its stroke draws on. Mounted straight into
+              data-state="in" — the panel only exists once the request has
+              landed, so there is no cold "out" frame to replay from.
+              pathLength={1} normalises the geometry, which is what the inline
+              dash values calibrate the recipe's placeholder `20` to. */}
+          <span className="t-success-check" data-state="in">
+            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7">
+              <path
+                d="M5 12.5l4.5 4.5L19 7.5"
+                stroke="#FA8837"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pathLength={1}
+                style={{ strokeDasharray: 1, strokeDashoffset: 1 }}
+              />
+            </svg>
+          </span>
         </span>
         <h2 className="mt-5 text-[clamp(1.35rem,1.9vw,28px)] font-medium leading-[1.25] text-[#072637]">
           Request received
@@ -175,7 +215,12 @@ export function DemoForm() {
         to you as soon as possible.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-7 space-y-5">
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        className="mt-7 space-y-5"
+      >
         <Field id="name" label="Name" required index={0} error={errors.name?.message}>
           <input
             id="name"
@@ -247,7 +292,7 @@ export function DemoForm() {
         {failed && (
           <p
             role="alert"
-            className="rounded-xl border border-[#D14343]/30 bg-[#FDF3F3] px-4 py-3 text-[13px] leading-[1.55] text-[#D14343]"
+            className="animate-field-in rounded-xl border border-[#D14343]/30 bg-[#FDF3F3] px-4 py-3 text-[13px] leading-[1.55] text-[#D14343] motion-reduce:animate-none"
           >
             We couldn&apos;t send your request just now. Please try again in a
             moment — your details are still here.
@@ -259,7 +304,29 @@ export function DemoForm() {
           disabled={isSubmitting}
           className="h-[52px] w-full rounded-full bg-[#072637] text-[15px] font-semibold uppercase tracking-[0.04em] text-white transition duration-micro ease-standard hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting ? 'Sending…' : 'Submit'}
+          {/* transitions.dev text states swap between the two labels; while
+              the request is in flight the label also runs the shimmer-text
+              recipe, recoloured for the navy button. */}
+          <TextSwap value={isSubmitting ? 'Sending…' : 'Submit'}>
+            {(label) =>
+              label === 'Sending…' ? (
+                <span
+                  className="t-shimmer"
+                  data-text={label}
+                  style={
+                    {
+                      '--shimmer-base': 'rgba(255,255,255,0.6)',
+                      '--shimmer-highlight': '#FFFFFF',
+                    } as React.CSSProperties
+                  }
+                >
+                  {label}
+                </span>
+              ) : (
+                label
+              )
+            }
+          </TextSwap>
         </button>
 
         {/* The Terms and Privacy pages do not exist yet, so these are named in

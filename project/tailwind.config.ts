@@ -143,23 +143,20 @@ const config: Config = {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
         },
-        'menu-in': {
-          '0%': { opacity: '0', transform: 'translateY(-8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
+        // transitions.dev texts reveal, as a mount animation: the recipe's
+        // 12px rise out of a 3px blur (app/transitions.css tokens).
         'field-in': {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          '0%': {
+            opacity: '0',
+            transform: 'translateY(var(--stagger-distance))',
+            filter: 'blur(var(--stagger-blur))',
+          },
+          '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' },
         },
+        // transitions.dev modal open: up from --scale-large (0.96).
         'panel-in': {
-          '0%': { opacity: '0', transform: 'scale(0.97)' },
+          '0%': { opacity: '0', transform: 'scale(var(--scale-large))' },
           '100%': { opacity: '1', transform: 'scale(1)' },
-        },
-        // pathLength={1} on the <path> normalises the dash units, so 1 is the
-        // whole stroke regardless of the curve's real length.
-        'tick-draw': {
-          '0%': { strokeDasharray: '1', strokeDashoffset: '1' },
-          '100%': { strokeDasharray: '1', strokeDashoffset: '0' },
         },
         // Vision glyph. Paired with steps(12) so the bitten wedge jumps 30° at
         // a time instead of gliding — the difference between a clock hand and
@@ -195,13 +192,12 @@ const config: Config = {
       },
       animation: {
         marquee: 'marquee 28s linear infinite',
-        'menu-in': 'menu-in var(--motion-duration-ui) var(--motion-ease-premium) both',
+        // `backwards`, not `both`: nothing (no transform, no filter) is left
+        // on the element once it has settled.
         'field-in':
-          'field-in var(--motion-duration-reveal) var(--motion-ease-premium) both',
+          'field-in var(--motion-duration-reveal) var(--motion-ease-premium) backwards',
         'panel-in':
-          'panel-in var(--motion-duration-ui) var(--motion-ease-premium) both',
-        'tick-draw':
-          'tick-draw var(--motion-duration-reveal) var(--motion-ease-standard) both',
+          'panel-in var(--motion-duration-ui) var(--motion-ease-premium) backwards',
         // Cycle lengths are in seconds like `marquee` — these are ambient
         // loops, not token-scaled UI transitions. Sped up from the original
         // 12s/5s/5s cut, which was tuned for restraint over noticeability;

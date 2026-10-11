@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
@@ -56,6 +56,17 @@ const sectionTargets = [
 
 const NAVIGATE_SETTLE_MS = 1200;
 
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+/** Mobile menu lifecycle for the transitions.dev dropdown (see below). */
+type MenuState = 'closed' | 'opening' | 'open' | 'closing';
+
+function readMs(name: string, fallback: number) {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+  return Number.isFinite(v) ? v : fallback;
+}
+
 /**
  * Routes a link through next/link, except for the `/#section` anchors, which
  * use a plain <a>.
@@ -93,7 +104,16 @@ function NavLink({
 
 export function Navbar() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState<MenuState>('closed');
+  const open = menu === 'opening' || menu === 'open';
+  const menuTimerRef = useRef<number | null>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const pillRef = useRef<HTMLSpanElement>(null);
+  const pillTargetRef = useRef('');
+  // Until the sliding pill has measured itself the active link keeps its own
+  // white background, so the first paint (and a page without JS) still shows
+  // the DESIGN.md active state.
+  const [pillReady, setPillReady] = useState(false);
   const [activeHref, setActiveHref] = useState<string | null>(
     pathname === '/' ? '/' : null
   );
@@ -139,12 +159,104 @@ export function Navbar() {
     }, NAVIGATE_SETTLE_MS);
   };
 
+  // transitions.dev menu dropdown. Mounted in its pre-open state, reflowed,
+  // then flipped to `.is-open` so the scale/opacity tween runs; on close it
+  // plays `.is-closing` for --dropdown-close-dur before unmounting, so the
+  // panel never leaves the header's flow mid-animation.
+  const setOpen = useCallback((next: boolean | ((cur: boolean) => boolean)) => {
+    setMenu((cur) => {
+      const isOpen = cur === 'opening' || cur === 'open';
+      const want = typeof next === 'function' ? next(isOpen) : next;
+      if (want === isOpen) return cur;
+      if (menuTimerRef.current !== null) {
+        window.clearTimeout(menuTimerRef.current);
+        menuTimerRef.current = null;
+      }
+      return want ? 'opening' : 'closing';
+    });
+  }, []);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  useIsomorphicLayoutEffect(() => {
+    if (menu === 'opening') {
+      void menuRef.current?.offsetHeight; // commit the pre-open frame first
+      setMenu('open');
+    } else if (menu === 'closing') {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      menuTimerRef.current = window.setTimeout(
+        () => {
+          menuTimerRef.current = null;
+          setMenu('closed');
+        },
+        reduce ? 0 : readMs('--dropdown-close-dur', 150)
+      );
+    }
+  }, [menu]);
+
+  useEffect(
+    () => () => {
+      if (menuTimerRef.current !== null) window.clearTimeout(menuTimerRef.current);
+    },
+    []
+  );
+
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
     window.addEventListener('resize', close);
     return () => window.removeEventListener('resize', close);
-  }, [open]);
+  }, [open, setOpen]);
+
+  // transitions.dev tabs sliding, on the desktop pill nav: one white pill
+  // travels to the active link instead of each link painting its own. The
+  // active link's offsetLeft/offsetWidth are written onto the pill (CSS owns
+  // the tween). Anything that moves the links without a change of section —
+  // first paint, a resize, Poppins swapping in — snaps it instead
+  // (`transition: none`, reflow, restore), so it never slides in from 0.
+  const placePill = useCallback((animate: boolean) => {
+    const nav = navRef.current;
+    const pill = pillRef.current;
+    if (!nav || !pill) return;
+    const link = nav.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!link) {
+      pill.style.opacity = '0';
+      pillTargetRef.current = '';
+      return;
+    }
+    const target = `${link.offsetLeft}:${link.offsetWidth}`;
+    if (target === pillTargetRef.current && pill.style.opacity === '1') return;
+    const write = () => {
+      pill.style.transform = `translateX(${link.offsetLeft}px)`;
+      pill.style.width = `${link.offsetWidth}px`;
+      pill.style.opacity = '1';
+    };
+    // A pill that was hidden (no active section) appears in place.
+    if (!animate || pill.style.opacity !== '1') {
+      const prev = pill.style.transition;
+      pill.style.transition = 'none';
+      write();
+      void pill.offsetWidth;
+      pill.style.transition = prev;
+    } else {
+      write();
+    }
+    pillTargetRef.current = target;
+    setPillReady(true);
+  }, []);
+
+  useIsomorphicLayoutEffect(() => {
+    placePill(pillReady);
+  }, [activeHref, pathname, pillReady, placePill]);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || typeof ResizeObserver === 'undefined') return;
+    // Fires on resize and on font swap; an unchanged target is a no-op, so
+    // the width change a section switch itself causes never cuts its slide.
+    const ro = new ResizeObserver(() => placePill(false));
+    ro.observe(nav);
+    return () => ro.disconnect();
+  }, [placePill]);
 
   useEffect(() => {
     if (pathname !== '/') {
@@ -299,18 +411,32 @@ export function Navbar() {
             the demo CTA on the right. */}
         <div className="flex items-center" style={{ gap: vw(45) }}>
           <nav
-            className="hidden items-center bg-[#FAFAFA] transition-[height] duration-ui ease-standard lg:flex"
+            ref={navRef}
+            className="relative hidden items-center bg-[#FAFAFA] transition-[height] duration-ui ease-standard lg:flex"
             style={{
               height: size(69, 52, condensed),
               borderRadius: size(35, 26, condensed),
             }}
           >
+            {/* The recipe's pill, sized to the reference's active-link pill
+                and centred on the bar however tall the condense makes it. */}
+            <span
+              ref={pillRef}
+              aria-hidden
+              className="t-tabs-pill"
+              style={{
+                top: `calc(50% - ${vw(19)})`,
+                height: vw(38),
+                borderRadius: vw(19),
+                opacity: 0,
+              }}
+            />
             {links.map((link) => {
               const active = pathname === '/' && activeHref === link.href;
               const className = cn(
-                'relative flex items-center justify-center font-medium uppercase transition-colors duration-micro ease-standard',
+                'relative z-[1] flex items-center justify-center font-medium uppercase transition-colors duration-micro ease-standard',
                 active
-                  ? 'bg-white text-[#FA8837]'
+                  ? cn('text-[#FA8837]', !pillReady && 'bg-white')
                   : 'text-[#0C3D59] hover:text-[#FA8837]'
               );
               const style = active
@@ -365,14 +491,28 @@ export function Navbar() {
             className="flex h-11 w-11 items-center justify-center rounded-full text-[#072637] transition-colors duration-micro ease-standard active:bg-black/5 lg:hidden"
             onClick={() => setOpen((v) => !v)}
             aria-label="Toggle menu"
+            aria-expanded={open}
           >
-            {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {/* transitions.dev icon swap: the two glyphs share one grid cell
+                and cross-fade through blur + scale. */}
+            <span className="t-icon-swap" data-state={open ? 'b' : 'a'}>
+              <Menu className="t-icon h-6 w-6" data-icon="a" />
+              <X className="t-icon h-6 w-6" data-icon="b" />
+            </span>
           </button>
         </div>
       </div>
 
-      {open && (
-        <div className="mx-5 mt-3 animate-menu-in rounded-2xl border border-[#E6EDF1] bg-white px-5 pb-5 pt-3 shadow-lg motion-reduce:animate-none lg:hidden">
+      {menu !== 'closed' && (
+        <div
+          ref={menuRef}
+          data-origin="top-right"
+          className={cn(
+            't-dropdown mx-5 mt-3 rounded-2xl border border-[#E6EDF1] bg-white px-5 pb-5 pt-3 shadow-lg lg:hidden',
+            menu === 'open' && 'is-open',
+            menu === 'closing' && 'is-closing'
+          )}
+        >
           <nav className="flex flex-col">
             {links.map((link) => {
               const active = pathname === '/' && activeHref === link.href;

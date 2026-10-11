@@ -58,7 +58,7 @@ export function Results() {
         <Reveal variant="fade">
           <p className="eyebrow mb-4 text-teal-400">Results &amp; Impact</p>
         </Reveal>
-        <Reveal variant="rise-mask" duration="cinematic" delay={120}>
+        <Reveal variant="rise-mask" delay={80}>
           <h2 className="max-w-2xl text-display-md font-semibold text-white">
             The improvements delivered measurable and immediate results
             <span className="text-brand-400">.</span>
@@ -69,7 +69,7 @@ export function Results() {
           className="mt-16 grid grid-cols-2 gap-x-6 gap-y-12 md:grid-cols-4 md:gap-6 lg:gap-8"
         >
           {stats.map((stat, i) => (
-            <Reveal key={stat.value} delay={i * 100}>
+            <Reveal key={stat.value} delay={i * 80}>
               <p className="text-6xl font-semibold text-brand-500 md:text-7xl">
                 <AnimatedStat
                   value={stat.value}
